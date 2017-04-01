@@ -5,14 +5,16 @@ import (
 	"io"
 	"strings"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	namesys "github.com/ipfs/go-ipfs/namesys"
 	offline "github.com/ipfs/go-ipfs/routing/offline"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 )
 
 var IpnsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Resolve IPNS names.",
 		ShortDescription: `
 IPNS is a PKI namespace, where names are the hashes of public keys, and
@@ -48,25 +50,25 @@ Resolve the value of a dnslink:
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("name", false, false, "The IPNS name to resolve. Defaults to your node's peerID."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("name", false, false, "The IPNS name to resolve. Defaults to your node's peerID."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("recursive", "r", "Resolve until the result is not an IPNS name.").Default(false),
-		cmds.BoolOption("nocache", "n", "Do not use cached entries.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("recursive", "r", "Resolve until the result is not an IPNS name.").Default(false),
+		cmdsutil.BoolOption("nocache", "n", "Do not use cached entries.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		if !n.OnlineMode() {
 			err := n.SetupOfflineRouting()
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 		}
@@ -78,7 +80,7 @@ Resolve the value of a dnslink:
 		var resolver namesys.Resolver = n.Namesys
 
 		if local && nocache {
-			res.SetError(errors.New("cannot specify both local and nocache"), cmds.ErrNormal)
+			res.SetError(errors.New("cannot specify both local and nocache"), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -94,7 +96,7 @@ Resolve the value of a dnslink:
 		var name string
 		if len(req.Arguments()) == 0 {
 			if n.Identity == "" {
-				res.SetError(errors.New("identity not loaded"), cmds.ErrNormal)
+				res.SetError(errors.New("Identity not loaded"), cmdsutil.ErrNormal)
 				return
 			}
 			name = n.Identity.Pretty()
@@ -115,7 +117,7 @@ Resolve the value of a dnslink:
 
 		output, err := resolver.ResolveN(req.Context(), name, depth)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -125,9 +127,14 @@ Resolve the value of a dnslink:
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			output, ok := res.Output().(*ResolvedPath)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
+			output, ok := v.(*ResolvedPath)
 			if !ok {
-				return nil, u.ErrCast()
+				return nil, e.TypeErr(output, v)
 			}
 			return strings.NewReader(output.Path.String() + "\n"), nil
 		},

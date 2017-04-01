@@ -8,8 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	keystore "github.com/ipfs/go-ipfs/keystore"
 	path "github.com/ipfs/go-ipfs/path"
 
@@ -20,7 +23,7 @@ import (
 var errNotOnline = errors.New("This command must be run in online mode. Try running 'ipfs daemon' first.")
 
 var PublishCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Publish IPNS names.",
 		ShortDescription: `
 IPNS is a PKI namespace, where names are the hashes of public keys, and
@@ -57,43 +60,42 @@ Alternatively, publish an <ipfs-path> using a valid PeerID(as listed by 'ipfs ke
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("ipfs-path", true, false, "ipfs path of the object to be published.").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("ipfs-path", true, false, "ipfs path of the object to be published.").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("resolve", "Resolve given path before publishing.").Default(true),
-		cmds.StringOption("lifetime", "t",
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("resolve", "Resolve given path before publishing.").Default(true),
+		cmdsutil.StringOption("lifetime", "t",
 			`Time duration that the record will be valid for. <<default>>
     This accepts durations such as "300s", "1.5h" or "2h45m". Valid time units are
     "ns", "us" (or "µs"), "ms", "s", "m", "h".`).Default("24h"),
-		cmds.StringOption("ttl", "Time duration this record should be cached for (caution: experimental)."),
-		cmds.StringOption("key", "k", "Name of the key to be used or a valid PeerID, as listed by 'ipfs key list -l'. Default: <<default>>.").Default("self"),
+		cmdsutil.StringOption("ttl", "Time duration this record should be cached for (caution: experimental)."),
+		cmdsutil.StringOption("key", "k", "Name of the key to be used or a valid PeerID, as listed by 'ipfs key list -l'. Default: <<default>>.").Default("self"),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
-		log.Debug("begin publish")
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		if !n.OnlineMode() {
 			err := n.SetupOfflineRouting()
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 		}
 
 		if n.Mounts.Ipns != nil && n.Mounts.Ipns.IsActive() {
-			res.SetError(errors.New("cannot manually publish while IPNS is mounted"), cmds.ErrNormal)
+			res.SetError(errors.New("cannot manually publish while IPNS is mounted"), cmdsutil.ErrNormal)
 			return
 		}
 
 		pstr := req.Arguments()[0]
 
 		if n.Identity == "" {
-			res.SetError(errors.New("identity not loaded"), cmds.ErrNormal)
+			res.SetError(errors.New("identity not loaded"), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -104,7 +106,7 @@ Alternatively, publish an <ipfs-path> using a valid PeerID(as listed by 'ipfs ke
 		validtime, _, _ := req.Option("lifetime").String()
 		d, err := time.ParseDuration(validtime)
 		if err != nil {
-			res.SetError(fmt.Errorf("error parsing lifetime option: %s", err), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("error parsing lifetime option: %s", err), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -114,7 +116,7 @@ Alternatively, publish an <ipfs-path> using a valid PeerID(as listed by 'ipfs ke
 		if ttl, found, _ := req.Option("ttl").String(); found {
 			d, err := time.ParseDuration(ttl)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
@@ -124,27 +126,35 @@ Alternatively, publish an <ipfs-path> using a valid PeerID(as listed by 'ipfs ke
 		kname, _, _ := req.Option("key").String()
 		k, err := keylookup(n, kname)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		pth, err := path.ParsePath(pstr)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		output, err := publish(ctx, n, k, pth, popts)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		res.SetOutput(output)
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			v := res.Output().(*IpnsEntry)
-			s := fmt.Sprintf("Published to %s: %s\n", v.Name, v.Value)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+			entry, ok := v.(*IpnsEntry)
+			if !ok {
+				return nil, e.TypeErr(entry, v)
+			}
+
+			s := fmt.Sprintf("Published to %s: %s\n", entry.Name, entry.Value)
 			return strings.NewReader(s), nil
 		},
 	},

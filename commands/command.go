@@ -14,6 +14,8 @@ import (
 	"io"
 	"reflect"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	"github.com/ipfs/go-ipfs/path"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
@@ -32,28 +34,11 @@ type Marshaler func(Response) (io.Reader, error)
 // (or an error on failure)
 type MarshalerMap map[EncodingType]Marshaler
 
-// HelpText is a set of strings used to generate command help text. The help
-// text follows formats similar to man pages, but not exactly the same.
-type HelpText struct {
-	// required
-	Tagline               string            // used in <cmd usage>
-	ShortDescription      string            // used in DESCRIPTION
-	SynopsisOptionsValues map[string]string // mappings for synopsis generator
-
-	// optional - whole section overrides
-	Usage           string // overrides USAGE section
-	LongDescription string // overrides DESCRIPTION section
-	Options         string // overrides OPTIONS section
-	Arguments       string // overrides ARGUMENTS section
-	Subcommands     string // overrides SUBCOMMANDS section
-	Synopsis        string // overrides SYNOPSIS field
-}
-
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
-	Options   []Option
-	Arguments []Argument
+	Options   []cmdsutil.Option
+	Arguments []cmdsutil.Argument
 	PreRun    func(req Request) error
 
 	// Run is the function that processes the request to generate a response.
@@ -63,7 +48,7 @@ type Command struct {
 	Run        Function
 	PostRun    Function
 	Marshalers map[EncodingType]Marshaler
-	Helptext   HelpText
+	Helptext   cmdsutil.HelpText
 
 	// External denotes that a command is actually an external binary.
 	// fewer checks and validations will be performed on such commands.
@@ -91,25 +76,25 @@ func (c *Command) Call(req Request) Response {
 
 	cmds, err := c.Resolve(req.Path())
 	if err != nil {
-		res.SetError(err, ErrClient)
+		res.SetError(err, cmdsutil.ErrClient)
 		return res
 	}
 	cmd := cmds[len(cmds)-1]
 
 	if cmd.Run == nil {
-		res.SetError(ErrNotCallable, ErrClient)
+		res.SetError(ErrNotCallable, cmdsutil.ErrClient)
 		return res
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		res.SetError(err, ErrClient)
+		res.SetError(err, cmdsutil.ErrClient)
 		return res
 	}
 
 	err = req.ConvertOptions()
 	if err != nil {
-		res.SetError(err, ErrClient)
+		res.SetError(err, cmdsutil.ErrClient)
 		return res
 	}
 
@@ -145,7 +130,7 @@ func (c *Command) Call(req Request) Response {
 		expectedType := reflect.TypeOf(cmd.Type)
 
 		if actualType != expectedType {
-			res.SetError(ErrIncorrectType, ErrNormal)
+			res.SetError(ErrIncorrectType, cmdsutil.ErrNormal)
 			return res
 		}
 	}
@@ -183,8 +168,8 @@ func (c *Command) Get(path []string) (*Command, error) {
 }
 
 // GetOptions returns the options in the given path of commands
-func (c *Command) GetOptions(path []string) (map[string]Option, error) {
-	options := make([]Option, 0, len(c.Options))
+func (c *Command) GetOptions(path []string) (map[string]cmdsutil.Option, error) {
+	options := make([]cmdsutil.Option, 0, len(c.Options))
 
 	cmds, err := c.Resolve(path)
 	if err != nil {
@@ -196,7 +181,7 @@ func (c *Command) GetOptions(path []string) (map[string]Option, error) {
 		options = append(options, cmd.Options...)
 	}
 
-	optionsMap := make(map[string]Option)
+	optionsMap := make(map[string]cmdsutil.Option)
 	for _, opt := range options {
 		for _, name := range opt.Names() {
 			if _, found := optionsMap[name]; found {
@@ -227,7 +212,7 @@ func (c *Command) CheckArguments(req Request) error {
 		// skip optional argument definitions if there aren't
 		// sufficient remaining values
 		if len(args)-valueIndex <= numRequired && !argDef.Required ||
-			argDef.Type == ArgFile {
+			argDef.Type == cmdsutil.ArgFile {
 			continue
 		}
 
@@ -290,7 +275,7 @@ func (c *Command) ProcessHelp() {
 
 // checkArgValue returns an error if a given arg value is not valid for the
 // given Argument
-func checkArgValue(v string, found bool, def Argument) error {
+func checkArgValue(v string, found bool, def cmdsutil.Argument) error {
 	if def.Variadic && def.SupportsStdin {
 		return nil
 	}
@@ -303,5 +288,17 @@ func checkArgValue(v string, found bool, def Argument) error {
 }
 
 func ClientError(msg string) error {
-	return &Error{Code: ErrClient, Message: msg}
+	return &cmdsutil.Error{Code: cmdsutil.ErrClient, Message: msg}
+}
+
+// global options, added to every command
+var globalOptions = []cmdsutil.Option{
+	cmdsutil.OptionEncodingType,
+	cmdsutil.OptionStreamChannels,
+	cmdsutil.OptionTimeout,
+}
+
+// the above array of Options, wrapped in a Command
+var globalCommand = &Command{
+	Options: globalOptions,
 }

@@ -8,13 +8,16 @@ import (
 	"io"
 	"strings"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	nodeMount "github.com/ipfs/go-ipfs/fuse/node"
 	config "github.com/ipfs/go-ipfs/repo/config"
 )
 
 var MountCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Mounts IPFS to the filesystem (read-only).",
 		ShortDescription: `
 Mount IPFS at a read-only mountpoint on the OS (default: /ipfs and /ipns).
@@ -70,32 +73,32 @@ baz
 baz
 `,
 	},
-	Options: []cmds.Option{
-		cmds.StringOption("ipfs-path", "f", "The path where IPFS should be mounted."),
-		cmds.StringOption("ipns-path", "n", "The path where IPNS should be mounted."),
+	Options: []cmdsutil.Option{
+		cmdsutil.StringOption("ipfs-path", "f", "The path where IPFS should be mounted."),
+		cmdsutil.StringOption("ipns-path", "n", "The path where IPNS should be mounted."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		cfg, err := req.InvocContext().GetConfig()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// error if we aren't running node in online mode
 		if !node.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		fsdir, found, err := req.Option("f").String()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		if !found {
@@ -105,7 +108,7 @@ baz
 		// get default mount points
 		nsdir, found, err := req.Option("n").String()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		if !found {
@@ -114,7 +117,7 @@ baz
 
 		err = nodeMount.Mount(node, fsdir, nsdir)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -126,9 +129,18 @@ baz
 	Type: config.Mounts{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			v := res.Output().(*config.Mounts)
-			s := fmt.Sprintf("IPFS mounted at: %s\n", v.IPFS)
-			s += fmt.Sprintf("IPNS mounted at: %s\n", v.IPNS)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
+			mnts, ok := v.(*config.Mounts)
+			if !ok {
+				return nil, e.TypeErr(mnts, v)
+			}
+
+			s := fmt.Sprintf("IPFS mounted at: %s\n", mnts.IPFS)
+			s += fmt.Sprintf("IPNS mounted at: %s\n", mnts.IPNS)
 			return strings.NewReader(s), nil
 		},
 	},

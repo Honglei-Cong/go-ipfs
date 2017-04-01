@@ -3,10 +3,11 @@ package chunk
 import (
 	"bytes"
 	"fmt"
-	"github.com/ipfs/go-ipfs/blocks"
-	"gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	"io"
 	"testing"
+
+	"github.com/ipfs/go-ipfs/blocks"
+	"gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 )
 
 func TestRabinChunking(t *testing.T) {

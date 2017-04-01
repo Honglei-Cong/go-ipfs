@@ -6,7 +6,10 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	path "github.com/ipfs/go-ipfs/path"
 
 	ipldcbor "gx/ipfs/QmNrbCt8j9DT5W9Pmjy2SdudT9k8GpaDr4sRuFix3BXhgR/go-ipld-cbor"
@@ -15,7 +18,7 @@ import (
 )
 
 var DagCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Interact with ipld dag objects.",
 		ShortDescription: `
 'ipfs dag' is used for creating and manipulating dag objects.
@@ -35,30 +38,30 @@ type OutputObject struct {
 }
 
 var DagPutCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Add a dag node to ipfs.",
 		ShortDescription: `
 'ipfs dag put' accepts input from a file or stdin and parses it
 into an object of the specified format.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.FileArg("object data", true, false, "The object to put").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.FileArg("object data", true, false, "The object to put").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.StringOption("format", "f", "Format that the object will be added as.").Default("cbor"),
-		cmds.StringOption("input-enc", "Format that the input object will be.").Default("json"),
+	Options: []cmdsutil.Option{
+		cmdsutil.StringOption("format", "f", "Format that the object will be added as.").Default("cbor"),
+		cmdsutil.StringOption("input-enc", "Format that the input object will be.").Default("json"),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		fi, err := req.Files().NextFile()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -69,13 +72,13 @@ into an object of the specified format.
 		case "json":
 			nd, err := convertJsonToType(fi, format)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
 			c, err := n.DAG.Add(nd)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
@@ -84,29 +87,34 @@ into an object of the specified format.
 		case "raw":
 			nd, err := convertRawToType(fi, format)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
 			c, err := n.DAG.Add(nd)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
 			res.SetOutput(&OutputObject{Cid: c})
 			return
 		default:
-			res.SetError(fmt.Errorf("unrecognized input encoding: %s", ienc), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("unrecognized input encoding: %s", ienc), cmdsutil.ErrNormal)
 			return
 		}
 	},
 	Type: OutputObject{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			oobj, ok := res.Output().(*OutputObject)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
+			oobj, ok := v.(*OutputObject)
 			if !ok {
-				return nil, fmt.Errorf("expected a different object in marshaler")
+				return nil, e.TypeErr(oobj, v)
 			}
 
 			return strings.NewReader(oobj.Cid.String()), nil
@@ -115,31 +123,31 @@ into an object of the specified format.
 }
 
 var DagGetCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Get a dag node from ipfs.",
 		ShortDescription: `
 'ipfs dag get' fetches a dag node from ipfs and prints it out in the specifed format.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("ref", true, false, "The object to get").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("ref", true, false, "The object to get").EnableStdin(),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		p, err := path.ParsePath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		obj, rem, err := n.Resolver.ResolveToLastNode(req.Context(), p)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -147,7 +155,7 @@ var DagGetCmd = &cmds.Command{
 		if len(rem) > 0 {
 			final, _, err := obj.Resolve(rem)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 			out = final
@@ -180,4 +188,18 @@ func convertRawToType(r io.Reader, format string) (node.Node, error) {
 	default:
 		return nil, fmt.Errorf("unsupported target format for raw input: %s", format)
 	}
+}
+
+// copy+pasted from ../commands.go
+func unwrapOutput(i interface{}) (interface{}, error) {
+	var (
+		ch <-chan interface{}
+		ok bool
+	)
+
+	if ch, ok = i.(<-chan interface{}); !ok {
+		return nil, e.TypeErr(ch, i)
+	}
+
+	return <-ch, nil
 }

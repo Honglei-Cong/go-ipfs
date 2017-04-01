@@ -4,13 +4,15 @@ import (
 	"io"
 	"strings"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	namesys "github.com/ipfs/go-ipfs/namesys"
-	util "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 )
 
 var DNSCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Resolve DNS links.",
 		ShortDescription: `
 Multihashes are hard to remember, but domain names are usually easy to
@@ -43,11 +45,11 @@ The resolver can recursively resolve:
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("domain-name", true, false, "The domain-name name to resolve.").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("domain-name", true, false, "The domain-name name to resolve.").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("recursive", "r", "Resolve until the result is not a DNS link.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("recursive", "r", "Resolve until the result is not a DNS link.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 
@@ -61,20 +63,25 @@ The resolver can recursively resolve:
 		}
 		output, err := resolver.ResolveN(req.Context(), name, depth)
 		if err == namesys.ErrResolveFailed {
-			res.SetError(err, cmds.ErrNotFound)
+			res.SetError(err, cmdsutil.ErrNotFound)
 			return
 		}
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		res.SetOutput(&ResolvedPath{output})
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			output, ok := res.Output().(*ResolvedPath)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
+			output, ok := v.(*ResolvedPath)
 			if !ok {
-				return nil, util.ErrCast()
+				return nil, e.TypeErr(output, v)
 			}
 			return strings.NewReader(output.Path.String() + "\n"), nil
 		},

@@ -11,6 +11,7 @@ import (
 	cmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdsutil"
 	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
 )
 
@@ -42,7 +43,7 @@ type P2PStreamsOutput struct {
 
 // P2PCmd is the 'ipfs ppp' command
 var P2PCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Libp2p stream mounting.",
 		ShortDescription: `
 Create and use tunnels to remote peers over libp2p
@@ -58,7 +59,7 @@ Note: this command is experimental and subject to change as usecases and APIs ar
 
 // p2pListenerCmd is the 'ipfs p2p listener' command
 var p2pListenerCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "P2P listener management.",
 		ShortDescription: "Create and manage listener p2p endpoints",
 	},
@@ -72,7 +73,7 @@ var p2pListenerCmd = &cmds.Command{
 
 // p2pStreamCmd is the 'ipfs p2p stream' command
 var p2pStreamCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "P2P stream management.",
 		ShortDescription: "Create and manage p2p streams",
 	},
@@ -85,17 +86,17 @@ var p2pStreamCmd = &cmds.Command{
 }
 
 var p2pListenerLsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List active p2p listeners.",
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("headers", "v", "Print table headers (HandlerID, Protocol, Local, Remote).").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("headers", "v", "Print table headers (HandlerID, Protocol, Local, Remote).").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -132,16 +133,16 @@ var p2pListenerLsCmd = &cmds.Command{
 }
 
 var p2pStreamLsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List active p2p streams.",
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("headers", "v", "Print table headers (HagndlerID, Protocol, Local, Remote).").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("headers", "v", "Print table headers (HagndlerID, Protocol, Local, Remote).").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -185,7 +186,7 @@ var p2pStreamLsCmd = &cmds.Command{
 }
 
 var p2pListenerListenCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Forward p2p connections to a network multiaddr.",
 		ShortDescription: `
 Register a p2p connection handler and forward the connections to a specified address.
@@ -193,32 +194,32 @@ Register a p2p connection handler and forward the connections to a specified add
 Note that the connections originate from the ipfs daemon process.
 		`,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Protocol", true, false, "Protocol identifier."),
-		cmds.StringArg("Address", true, false, "Request handling application address."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("Protocol", true, false, "Protocol identifier."),
+		cmdsutil.StringArg("Address", true, false, "Request handling application address."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		proto := "/p2p/" + req.Arguments()[0]
 		if n.P2P.CheckProtoExists(proto) {
-			res.SetError(errors.New("protocol handler already registered"), cmds.ErrNormal)
+			res.SetError(errors.New("protocol handler already registered"), cmdsutil.ErrNormal)
 			return
 		}
 
 		addr, err := ma.NewMultiaddr(req.Arguments()[1])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		_, err = n.P2P.NewListener(n.Context(), proto, addr)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -231,7 +232,7 @@ Note that the connections originate from the ipfs daemon process.
 }
 
 var p2pStreamDialCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Dial to a p2p listener.",
 
 		ShortDescription: `
@@ -242,21 +243,21 @@ TCP listener and return it's bind port, this way a dialing application can
 transparently connect to a p2p service.
 		`,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Peer", true, false, "Remote peer to connect to"),
-		cmds.StringArg("Protocol", true, false, "Protocol identifier."),
-		cmds.StringArg("BindAddress", false, false, "Address to listen for connection/s (default: /ip4/127.0.0.1/tcp/0)."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("Peer", true, false, "Remote peer to connect to"),
+		cmdsutil.StringArg("Protocol", true, false, "Protocol identifier."),
+		cmdsutil.StringArg("BindAddress", false, false, "Address to listen for connection/s (default: /ip4/127.0.0.1/tcp/0)."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		addr, peer, err := ParsePeerParam(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -266,14 +267,14 @@ transparently connect to a p2p service.
 		if len(req.Arguments()) == 3 {
 			bindAddr, err = ma.NewMultiaddr(req.Arguments()[2])
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 		}
 
 		listenerInfo, err := n.P2P.Dial(n.Context(), addr, peer, proto, bindAddr)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -287,19 +288,19 @@ transparently connect to a p2p service.
 }
 
 var p2pListenerCloseCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Close active p2p listener.",
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("Protocol", false, false, "P2P listener protocol"),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("Protocol", false, false, "P2P listener protocol"),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("all", "a", "Close all listeners.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("all", "a", "Close all listeners.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -308,7 +309,7 @@ var p2pListenerCloseCmd = &cmds.Command{
 
 		if !closeAll {
 			if len(req.Arguments()) == 0 {
-				res.SetError(errors.New("no protocol name specified"), cmds.ErrNormal)
+				res.SetError(errors.New("no protocol name specified"), cmdsutil.ErrNormal)
 				return
 			}
 
@@ -328,19 +329,19 @@ var p2pListenerCloseCmd = &cmds.Command{
 }
 
 var p2pStreamCloseCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Close active p2p stream.",
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("HandlerID", false, false, "Stream HandlerID"),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("HandlerID", false, false, "Stream HandlerID"),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("all", "a", "Close all streams.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("all", "a", "Close all streams.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := getNode(req)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -349,13 +350,13 @@ var p2pStreamCloseCmd = &cmds.Command{
 
 		if !closeAll {
 			if len(req.Arguments()) == 0 {
-				res.SetError(errors.New("no HandlerID specified"), cmds.ErrNormal)
+				res.SetError(errors.New("no HandlerID specified"), cmdsutil.ErrNormal)
 				return
 			}
 
 			handlerID, err = strconv.ParseUint(req.Arguments()[0], 10, 64)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 		}

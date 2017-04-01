@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
+
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
+	"gx/ipfs/QmRTwaSETX8m9rVAD9QacsoxFMURcuSoLDhf1jtABzCcLP/go-ipfs-cmds"
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit/files"
 
 	bstore "github.com/ipfs/go-ipfs/blocks/blockstore"
 	blockservice "github.com/ipfs/go-ipfs/blockservice"
-	cmds "github.com/ipfs/go-ipfs/commands"
-	files "github.com/ipfs/go-ipfs/commands/files"
 	core "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreunix"
 	offline "github.com/ipfs/go-ipfs/exchange/offline"
@@ -19,11 +23,10 @@ import (
 	ft "github.com/ipfs/go-ipfs/unixfs"
 
 	mh "gx/ipfs/QmVGtdTZdTFaLsaj2RwdVG8jcjNNcp1DE914DKZ2kHmXHw/go-multihash"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	"gx/ipfs/QmeWjRodbcZFKe5tMN7poEx3izym6osrLSnTLf9UjJZBbs/pb"
 )
 
-// Error indicating the max depth has been exceded.
+// ErrDepthLimitExceeded indicates that the max depth has been exceded.
 var ErrDepthLimitExceeded = fmt.Errorf("depth limit exceeded")
 
 const (
@@ -47,7 +50,7 @@ const (
 const adderOutChanSize = 8
 
 var AddCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Add a file or directory to ipfs.",
 		ShortDescription: `
 Adds contents of <path> to ipfs. Use -r to add directories (recursively).
@@ -74,26 +77,26 @@ You can now refer to the added file in a gateway, like so:
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.FileArg("path", true, true, "The path to a file to be added to ipfs.").EnableRecursive().EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.FileArg("path", true, true, "The path to a file to be added to ipfs.").EnableRecursive().EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.OptionRecursivePath, // a builtin option that allows recursive paths (-r, --recursive)
-		cmds.BoolOption(quietOptionName, "q", "Write minimal output."),
-		cmds.BoolOption(quieterOptionName, "Q", "Write only final hash."),
-		cmds.BoolOption(silentOptionName, "Write no output."),
-		cmds.BoolOption(progressOptionName, "p", "Stream progress data."),
-		cmds.BoolOption(trickleOptionName, "t", "Use trickle-dag format for dag generation."),
-		cmds.BoolOption(onlyHashOptionName, "n", "Only chunk and hash - do not write to disk."),
-		cmds.BoolOption(wrapOptionName, "w", "Wrap files with a directory object."),
-		cmds.BoolOption(hiddenOptionName, "H", "Include files that are hidden. Only takes effect on recursive add."),
-		cmds.StringOption(chunkerOptionName, "s", "Chunking algorithm to use."),
-		cmds.BoolOption(pinOptionName, "Pin this object when adding.").Default(true),
-		cmds.BoolOption(rawLeavesOptionName, "Use raw blocks for leaf nodes. (experimental)"),
-		cmds.BoolOption(noCopyOptionName, "Add the file using filestore. (experimental)"),
-		cmds.BoolOption(fstoreCacheOptionName, "Check the filestore for pre-existing blocks. (experimental)"),
-		cmds.IntOption(cidVersionOptionName, "Cid version. Non-zero value will change default of 'raw-leaves' to true. (experimental)").Default(0),
-		cmds.StringOption(hashOptionName, "Hash function to use. Will set Cid version to 1 if used. (experimental)").Default("sha2-256"),
+	Options: []cmdsutil.Option{
+		cmdsutil.OptionRecursivePath, // a builtin option that allows recursive paths (-r, --recursive)
+		cmdsutil.BoolOption(quietOptionName, "q", "Write minimal output."),
+		cmdsutil.BoolOption(quieterOptionName, "Q", "Write only final hash."),
+		cmdsutil.BoolOption(silentOptionName, "Write no output."),
+		cmdsutil.BoolOption(progressOptionName, "p", "Stream progress data."),
+		cmdsutil.BoolOption(trickleOptionName, "t", "Use trickle-dag format for dag generation."),
+		cmdsutil.BoolOption(onlyHashOptionName, "n", "Only chunk and hash - do not write to disk."),
+		cmdsutil.BoolOption(wrapOptionName, "w", "Wrap files with a directory object."),
+		cmdsutil.BoolOption(hiddenOptionName, "H", "Include files that are hidden. Only takes effect on recursive add."),
+		cmdsutil.StringOption(chunkerOptionName, "s", "Chunking algorithm to use."),
+		cmdsutil.BoolOption(pinOptionName, "Pin this object when adding.").Default(true),
+		cmdsutil.BoolOption(rawLeavesOptionName, "Use raw blocks for leaf nodes. (experimental)"),
+		cmdsutil.BoolOption(noCopyOptionName, "Add the file using filestore. (experimental)"),
+		cmdsutil.BoolOption(fstoreCacheOptionName, "Check the filestore for pre-existing blocks. (experimental)"),
+		cmdsutil.IntOption(cidVersionOptionName, "Cid version. Non-zero value will change default of 'raw-leaves' to true. (experimental)").Default(0),
+		cmdsutil.StringOption(hashOptionName, "Hash function to use. Will set Cid version to 1 if used. (experimental)").Default("sha2-256"),
 	},
 	PreRun: func(req cmds.Request) error {
 		quiet, _, _ := req.Option(quietOptionName).Bool()
@@ -130,29 +133,34 @@ You can now refer to the added file in a gateway, like so:
 				return
 			}
 
-			log.Debugf("Total size of file being added: %v\n", size)
 			sizeCh <- size
 		}()
 
 		return nil
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
+	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			err2 := re.SetError(err, cmdsutil.ErrNormal)
+			if err2 != nil {
+				log.Error(err)
+			}
 			return
 		}
 
 		cfg, err := n.Repo.Config()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			err2 := re.SetError(err, cmdsutil.ErrNormal)
+			if err2 != nil {
+				log.Error(err)
+			}
 			return
 		}
 		// check if repo will exceed storage limit if added
 		// TODO: this doesn't handle the case if the hashed file is already in blocks (deduplicated)
 		// TODO: conditional GC is disabled due to it is somehow not possible to pass the size to the daemon
 		//if err := corerepo.ConditionalGC(req.Context(), n, uint64(size)); err != nil {
-		//	res.SetError(err, cmds.ErrNormal)
+		//	res.SetError(err, cmdsutil.ErrNormal)
 		//	return
 		//}
 
@@ -171,8 +179,12 @@ You can now refer to the added file in a gateway, like so:
 		hashFunStr, hfset, _ := req.Option(hashOptionName).String()
 
 		if nocopy && !cfg.Experimental.FilestoreEnabled {
-			res.SetError(errors.New("filestore is not enabled, see https://git.io/vy4XN"),
-				cmds.ErrClient)
+			err2 := re.SetError(errors.New("filestore is not enabled, see https://git.io/vy4XN"),
+				cmdsutil.ErrClient)
+			if err2 != nil {
+				log.Error(err)
+			}
+
 			return
 		}
 
@@ -181,7 +193,11 @@ You can now refer to the added file in a gateway, like so:
 		}
 
 		if nocopy && !rawblks {
-			res.SetError(fmt.Errorf("nocopy option requires '--raw-leaves' to be enabled as well"), cmds.ErrNormal)
+			err2 := re.SetError(fmt.Errorf("nocopy option requires '--raw-leaves' to be enabled as well"), cmdsutil.ErrNormal)
+			if err2 != nil {
+				log.Error(err)
+			}
+
 			return
 		}
 
@@ -195,13 +211,13 @@ You can now refer to the added file in a gateway, like so:
 
 		prefix, err := dag.PrefixForCidVersion(cidVer)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		hashFunCode, ok := mh.Names[strings.ToLower(hashFunStr)]
 		if !ok {
-			res.SetError(fmt.Errorf("unrecognized hash function: %s", strings.ToLower(hashFunStr)), cmds.ErrNormal)
+			re.SetError(fmt.Errorf("unrecognized hash function: %s", strings.ToLower(hashFunStr)), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -215,7 +231,10 @@ You can now refer to the added file in a gateway, like so:
 				NilRepo: true,
 			})
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				err2 := re.SetError(err, cmdsutil.ErrNormal)
+				if err2 != nil {
+					log.Error(err)
+				}
 				return
 			}
 			n = nilnode
@@ -235,14 +254,16 @@ You can now refer to the added file in a gateway, like so:
 		bserv := blockservice.New(addblockstore, exch)
 		dserv := dag.NewDAGService(bserv)
 
+		outChan := make(chan interface{}, adderOutChanSize)
+
 		fileAdder, err := coreunix.NewAdder(req.Context(), n.Pinning, n.Blockstore, dserv)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			err2 := re.SetError(err, cmdsutil.ErrNormal)
+			if err2 != nil {
+				log.Error(err)
+			}
 			return
 		}
-
-		outChan := make(chan interface{}, adderOutChanSize)
-		res.SetOutput((<-chan interface{})(outChan))
 
 		fileAdder.Out = outChan
 		fileAdder.Chunker = chunker
@@ -260,7 +281,10 @@ You can now refer to the added file in a gateway, like so:
 			md := dagtest.Mock()
 			mr, err := mfs.NewRoot(req.Context(), md, ft.EmptyDirNode(), nil)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				err2 := re.SetError(err, cmdsutil.ErrNormal)
+				if err2 != nil {
+					log.Error(err)
+				}
 				return
 			}
 
@@ -299,110 +323,178 @@ You can now refer to the added file in a gateway, like so:
 
 		go func() {
 			defer close(outChan)
-			if err := addAllAndPin(req.Files()); err != nil {
-				res.SetError(err, cmds.ErrNormal)
-				return
+			err := addAllAndPin(req.Files())
+			if err != nil {
+				err2 := re.SetError(err, cmdsutil.ErrNormal)
+				if err2 != nil {
+					log.Error(err)
+				}
 			}
-
 		}()
-	},
-	PostRun: func(req cmds.Request, res cmds.Response) {
-		if res.Error() != nil {
-			return
-		}
-		outChan, ok := res.Output().(<-chan interface{})
-		if !ok {
-			res.SetError(u.ErrCast(), cmds.ErrNormal)
-			return
-		}
-		res.SetOutput(nil)
 
-		quiet, _, _ := req.Option(quietOptionName).Bool()
-		quieter, _, _ := req.Option(quieterOptionName).Bool()
-		quiet = quiet || quieter
-
-		progress, _, _ := req.Option(progressOptionName).Bool()
-
-		var bar *pb.ProgressBar
-		if progress {
-			bar = pb.New64(0).SetUnits(pb.U_BYTES)
-			bar.ManualUpdate = true
-			bar.ShowTimeLeft = false
-			bar.ShowPercent = false
-			bar.Output = res.Stderr()
-			bar.Start()
-		}
-
-		var sizeChan chan int64
-		s, found := req.Values()["size"]
-		if found {
-			sizeChan = s.(chan int64)
-		}
-
-		lastFile := ""
-		lastHash := ""
-		var totalProgress, prevFiles, lastBytes int64
-
-	LOOP:
-		for {
-			select {
-			case out, ok := <-outChan:
-				if !ok {
-					if quieter {
-						fmt.Fprintln(res.Stdout(), lastHash)
-					}
-					break LOOP
-				}
-				output := out.(*coreunix.AddedObject)
-				if len(output.Hash) > 0 {
-					lastHash = output.Hash
-					if quieter {
-						continue
-					}
-
-					if progress {
-						// clear progress bar line before we print "added x" output
-						fmt.Fprintf(res.Stderr(), "\033[2K\r")
-					}
-					if quiet {
-						fmt.Fprintf(res.Stdout(), "%s\n", output.Hash)
-					} else {
-						fmt.Fprintf(res.Stdout(), "added %s %s\n", output.Hash, output.Name)
-					}
-				} else {
-					log.Debugf("add progress: %v %v\n", output.Name, output.Bytes)
-
-					if !progress {
-						continue
-					}
-
-					if len(lastFile) == 0 {
-						lastFile = output.Name
-					}
-					if output.Name != lastFile || output.Bytes < lastBytes {
-						prevFiles += lastBytes
-						lastFile = output.Name
-					}
-					lastBytes = output.Bytes
-					delta := prevFiles + lastBytes - totalProgress
-					totalProgress = bar.Add64(delta)
-				}
-
-				if progress {
-					bar.Update()
-				}
-			case size := <-sizeChan:
-				if progress {
-					bar.Total = size
-					bar.ShowPercent = true
-					bar.ShowBar = true
-					bar.ShowTimeLeft = true
-				}
-			case <-req.Context().Done():
-				res.SetError(req.Context().Err(), cmds.ErrNormal)
+		defer re.Close()
+		for v := range outChan {
+			err := re.Emit(v)
+			if err != nil {
+				log.Error(err)
 				return
 			}
 		}
+	},
+	PostRun: map[cmds.EncodingType]func(cmds.Request, cmds.ResponseEmitter) cmds.ResponseEmitter{
+		cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
+			reNext, res := cmds.NewChanResponsePair(req)
+			outChan := make(chan interface{})
+
+			progressBar := func(wait chan struct{}) {
+				defer close(wait)
+
+				quiet, _, _ := req.Option(quietOptionName).Bool()
+				quieter, _, _ := req.Option(quieterOptionName).Bool()
+				quiet = quiet || quieter
+
+				progress, _, _ := req.Option(progressOptionName).Bool()
+
+				var bar *pb.ProgressBar
+				if progress {
+					bar = pb.New64(0).SetUnits(pb.U_BYTES)
+					bar.ManualUpdate = true
+					bar.ShowTimeLeft = false
+					bar.ShowPercent = false
+					bar.Output = os.Stderr
+					bar.Start()
+				}
+
+				var sizeChan chan int64
+				s, found := req.Values()["size"]
+				if found {
+					sizeChan = s.(chan int64)
+				}
+
+				lastFile := ""
+				lastHash := ""
+				var totalProgress, prevFiles, lastBytes int64
+
+			LOOP:
+				for {
+					select {
+					case out, ok := <-outChan:
+						if !ok {
+							if quieter {
+								fmt.Fprintln(os.Stdout, lastHash)
+							}
+
+							break LOOP
+						}
+						output := out.(*coreunix.AddedObject)
+						if len(output.Hash) > 0 {
+							lastHash = output.Hash
+							if quieter {
+								continue
+							}
+
+							if progress {
+								// clear progress bar line before we print "added x" output
+								fmt.Fprintf(os.Stderr, "\033[2K\r")
+							}
+							if quiet {
+								fmt.Fprintf(os.Stdout, "%s\n", output.Hash)
+							} else {
+								fmt.Fprintf(os.Stdout, "added %s %s\n", output.Hash, output.Name)
+							}
+
+						} else {
+
+							if !progress {
+								continue
+							}
+
+							if len(lastFile) == 0 {
+								lastFile = output.Name
+							}
+							if output.Name != lastFile || output.Bytes < lastBytes {
+								prevFiles += lastBytes
+								lastFile = output.Name
+							}
+							lastBytes = output.Bytes
+							delta := prevFiles + lastBytes - totalProgress
+							totalProgress = bar.Add64(delta)
+						}
+
+						if progress {
+							bar.Update()
+						}
+					case size := <-sizeChan:
+						if progress {
+							bar.Total = size
+							bar.ShowPercent = true
+							bar.ShowBar = true
+							bar.ShowTimeLeft = true
+						}
+					case <-req.Context().Done():
+						err2 := re.SetError(req.Context().Err(), cmdsutil.ErrNormal)
+						if err2 != nil {
+							log.Error(req.Context().Err(), err2)
+						}
+
+						return
+					}
+				}
+			}
+
+			go func() {
+				// defer order important! First close outChan, then wait for output to finish, then close re
+				defer re.Close()
+
+				if e := res.Error(); e != nil {
+					err2 := re.SetError(e.Message, e.Code)
+					if err2 != nil {
+						log.Error(e, err2)
+					}
+
+					close(outChan)
+					return
+				}
+
+				wait := make(chan struct{})
+				go progressBar(wait)
+
+				defer func() { <-wait }()
+				defer close(outChan)
+
+				for {
+					v, err := res.Next()
+					if err != nil {
+						// replace error by actual error - will be looked at by next if-statement
+						if err == cmds.ErrRcvdError {
+							err = res.Error()
+						}
+
+						if e, ok := err.(*cmdsutil.Error); ok {
+							err2 := re.SetError(e.Message, e.Code)
+							if err2 != nil {
+								log.Error(err)
+							}
+
+						}
+
+						if err != io.EOF {
+							err2 := re.SetError(err, cmdsutil.ErrNormal)
+							if err2 != nil {
+								log.Error(err)
+							}
+
+						}
+
+						return
+					}
+
+					outChan <- v
+				}
+			}()
+
+			return reNext
+		},
 	},
 	Type: coreunix.AddedObject{},
 }

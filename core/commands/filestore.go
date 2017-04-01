@@ -4,27 +4,39 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
+	oldCmds "github.com/ipfs/go-ipfs/commands"
+	cmds "gx/ipfs/QmRTwaSETX8m9rVAD9QacsoxFMURcuSoLDhf1jtABzCcLP/go-ipfs-cmds"
+
 	"github.com/ipfs/go-ipfs/core"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	"github.com/ipfs/go-ipfs/filestore"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 )
 
 var FileStoreCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Interact with filestore objects.",
 	},
 	Subcommands: map[string]*cmds.Command{
-		"ls":     lsFileStore,
+		"ls": lsFileStore,
+	},
+	OldSubcommands: map[string]*oldCmds.Command{
 		"verify": verifyFileStore,
 		"dups":   dupsFileStore,
 	},
 }
 
+type lsEncoder struct {
+	errors bool
+	w      io.Writer
+}
+
 var lsFileStore = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List objects in filestore.",
 		LongDescription: `
 List objects in the filestore.
@@ -37,62 +49,110 @@ The output is:
 <hash> <size> <path> <offset>
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("obj", false, true, "Cid of objects to list."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("obj", false, true, "Cid of objects to list."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("file-order", "sort the results based on the path of the backing file"),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("file-order", "sort the results based on the path of the backing file"),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		_, fs, err := getFilestore(req)
+	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
+		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			err2 := re.SetError(err, cmdsutil.ErrNormal)
+			if err2 != nil {
+				log.Error(err)
+			}
 			return
 		}
 		args := req.Arguments()
 		if len(args) > 0 {
-			out := perKeyActionToChan(args, func(c *cid.Cid) *filestore.ListRes {
+			out := perKeyActionToChan(req.Context(), args, func(c *cid.Cid) *filestore.ListRes {
 				return filestore.List(fs, c)
-			}, req.Context())
-			res.SetOutput(out)
+			})
+
+			err = re.Emit(out)
 		} else {
 			fileOrder, _, _ := req.Option("file-order").Bool()
 			next, err := filestore.ListAll(fs, fileOrder)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				err2 := re.SetError(err, cmdsutil.ErrNormal)
+				if err2 != nil {
+					log.Error(err)
+				}
 				return
 			}
-			out := listResToChan(next, req.Context())
-			res.SetOutput(out)
+
+			out := listResToChan(req.Context(), next)
+			err = re.Emit(out)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-			errors := false
-			for r0 := range outChan {
-				r := r0.(*filestore.ListRes)
-				if r.ErrorMsg != "" {
-					errors = true
-					fmt.Fprintf(res.Stderr(), "%s\n", r.ErrorMsg)
-				} else {
-					fmt.Fprintf(res.Stdout(), "%s\n", r.FormatLong())
+	PostRun: cmds.PostRunMap{
+		cmds.CLI: func(req cmds.Request, re cmds.ResponseEmitter) cmds.ResponseEmitter {
+			reNext, res := cmds.NewChanResponsePair(req)
+
+			go func() {
+				defer re.Close()
+
+				var (
+					v      interface{}
+					err    error
+					errors bool
+				)
+
+				for {
+					v, err = res.Next()
+					if err != nil {
+						break
+					}
+
+					r, ok := v.(*filestore.ListRes)
+					if !ok {
+						log.Error(e.New(e.TypeErr(r, v)))
+						return
+					}
+
+					if r.ErrorMsg != "" {
+						errors = true
+						fmt.Fprintf(os.Stderr, "%s\n", r.ErrorMsg)
+					} else {
+						fmt.Fprintf(os.Stdout, "%s\n", r.FormatLong())
+					}
 				}
-			}
-			if errors {
-				return nil, fmt.Errorf("errors while displaying some entries")
-			}
-			return nil, nil
+
+				if err == io.EOF {
+					// all good
+				} else if err == cmds.ErrRcvdError {
+					e := res.Error()
+					err := re.SetError(e.Message, e.Code)
+					if err != nil {
+						log.Error(err)
+					}
+				} else {
+					err2 := re.SetError(err, cmdsutil.ErrNormal)
+					if err2 != nil {
+						log.Error(err)
+					}
+				}
+
+				if errors {
+					err := re.SetError("errors while displaying some entries", cmdsutil.ErrNormal)
+					if err != nil {
+						log.Error(err)
+					}
+				}
+			}()
+
+			return reNext
 		},
 	},
 	Type: filestore.ListRes{},
 }
 
-var verifyFileStore = &cmds.Command{
-	Helptext: cmds.HelpText{
+var verifyFileStore = &oldCmds.Command{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Verify objects in filestore.",
 		LongDescription: `
 Verify objects in the filestore.
@@ -115,68 +175,70 @@ ERROR:    internal error, most likely due to a corrupt database
 For ERROR entries the error will also be printed to stderr.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("obj", false, true, "Cid of objects to verify."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("obj", false, true, "Cid of objects to verify."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("file-order", "verify the objects based on the order of the backing file"),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("file-order", "verify the objects based on the order of the backing file"),
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		_, fs, err := getFilestore(req)
+	Run: func(req oldCmds.Request, res oldCmds.Response) {
+		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		args := req.Arguments()
 		if len(args) > 0 {
-			out := perKeyActionToChan(args, func(c *cid.Cid) *filestore.ListRes {
+			out := perKeyActionToChan(req.Context(), args, func(c *cid.Cid) *filestore.ListRes {
 				return filestore.Verify(fs, c)
-			}, req.Context())
+			})
 			res.SetOutput(out)
 		} else {
 			fileOrder, _, _ := req.Option("file-order").Bool()
 			next, err := filestore.VerifyAll(fs, fileOrder)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
-			out := listResToChan(next, req.Context())
+			out := listResToChan(req.Context(), next)
 			res.SetOutput(out)
 		}
 	},
-	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
+	Marshalers: oldCmds.MarshalerMap{
+		oldCmds.Text: func(res oldCmds.Response) (io.Reader, error) {
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
+			r, ok := v.(*filestore.ListRes)
 			if !ok {
-				return nil, u.ErrCast()
+				return nil, e.TypeErr(r, v)
 			}
-			res.SetOutput(nil)
-			for r0 := range outChan {
-				r := r0.(*filestore.ListRes)
-				if r.Status == filestore.StatusOtherError {
-					fmt.Fprintf(res.Stderr(), "%s\n", r.ErrorMsg)
-				}
-				fmt.Fprintf(res.Stdout(), "%s %s\n", r.Status.Format(), r.FormatLong())
+
+			if r.Status == filestore.StatusOtherError {
+				fmt.Fprintf(res.Stderr(), "%s\n", r.ErrorMsg)
 			}
+			fmt.Fprintf(res.Stdout(), "%s %s\n", r.Status.Format(), r.FormatLong())
 			return nil, nil
 		},
 	},
 	Type: filestore.ListRes{},
 }
 
-var dupsFileStore = &cmds.Command{
-	Helptext: cmds.HelpText{
+var dupsFileStore = &oldCmds.Command{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List blocks that are both in the filestore and standard block storage.",
 	},
-	Run: func(req cmds.Request, res cmds.Response) {
-		_, fs, err := getFilestore(req)
+	Run: func(req oldCmds.Request, res oldCmds.Response) {
+		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		ch, err := fs.FileManager().AllKeysChan(req.Context())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -201,8 +263,12 @@ var dupsFileStore = &cmds.Command{
 	Type:       RefWrapper{},
 }
 
-func getFilestore(req cmds.Request) (*core.IpfsNode, *filestore.Filestore, error) {
-	n, err := req.InvocContext().GetNode()
+type getNoder interface {
+	GetNode() (*core.IpfsNode, error)
+}
+
+func getFilestore(g getNoder) (*core.IpfsNode, *filestore.Filestore, error) {
+	n, err := g.GetNode()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -213,7 +279,7 @@ func getFilestore(req cmds.Request) (*core.IpfsNode, *filestore.Filestore, error
 	return n, fs, err
 }
 
-func listResToChan(next func() *filestore.ListRes, ctx context.Context) <-chan interface{} {
+func listResToChan(ctx context.Context, next func() *filestore.ListRes) <-chan interface{} {
 	out := make(chan interface{}, 128)
 	go func() {
 		defer close(out)
@@ -232,7 +298,7 @@ func listResToChan(next func() *filestore.ListRes, ctx context.Context) <-chan i
 	return out
 }
 
-func perKeyActionToChan(args []string, action func(*cid.Cid) *filestore.ListRes, ctx context.Context) <-chan interface{} {
+func perKeyActionToChan(ctx context.Context, args []string, action func(*cid.Cid) *filestore.ListRes) <-chan interface{} {
 	out := make(chan interface{}, 128)
 	go func() {
 		defer close(out)

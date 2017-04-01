@@ -8,7 +8,10 @@ import (
 	"io"
 	"time"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdsutil"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	path "github.com/ipfs/go-ipfs/path"
 
@@ -16,7 +19,6 @@ import (
 	notif "gx/ipfs/QmNdaQ8itUU9jEZUwTsG4gHMaPmRfi6FEe89QjQAFbep3M/go-libp2p-routing/notifications"
 	ipdht "gx/ipfs/QmRmroYSdievxnjiuy99C8BzShNstdEWcEF3LQHF7fUbez/go-libp2p-kad-dht"
 	b58 "gx/ipfs/QmT8rehPR3F6bmwL6zjUN8XpiDBFFpMP2myPdC6ApsWfJf/go-base58"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	pstore "gx/ipfs/QmXZSd1qR5BxZkPyuwfT5jpqQFScZccoZvDneXsKzCNHWX/go-libp2p-peerstore"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
@@ -25,7 +27,7 @@ import (
 var ErrNotDHT = errors.New("routing service is not a DHT")
 
 var DhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "Issue commands directly through the DHT.",
 		ShortDescription: ``,
 	},
@@ -41,27 +43,27 @@ var DhtCmd = &cmds.Command{
 }
 
 var queryDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "Find the closest Peer IDs to a given Peer ID by querying the DHT.",
 		ShortDescription: "Outputs a list of newline-delimited Peer IDs.",
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("peerID", true, true, "The peerID to run the query against."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("peerID", true, true, "The peerID to run the query against."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmds.ErrNormal)
+			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -72,7 +74,7 @@ var queryDhtCmd = &cmds.Command{
 
 		closestPeers, err := dht.GetClosestPeers(ctx, k)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -97,12 +99,7 @@ var queryDhtCmd = &cmds.Command{
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
+		cmds.Text: func() cmds.Marshaler {
 			pfm := pfuncMap{
 				notif.PeerResponse: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					for _, p := range obj.Responses {
@@ -111,10 +108,15 @@ var queryDhtCmd = &cmds.Command{
 				},
 			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
+			return func(res cmds.Response) (io.Reader, error) {
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
+
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				verbose, _, _ := res.Request().Option("v").Bool()
@@ -123,50 +125,44 @@ var queryDhtCmd = &cmds.Command{
 				printEvent(obj, buf, verbose, pfm)
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }
 
 var findProvidersDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "Find peers in the DHT that can provide a specific value, given a key.",
 		ShortDescription: "Outputs a list of newline-delimited provider Peer IDs.",
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, true, "The key to find providers for."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("key", true, true, "The key to find providers for."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
-		cmds.IntOption("num-providers", "n", "The number of providers to find.").Default(20),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+		cmdsutil.IntOption("num-providers", "n", "The number of providers to find.").Default(20),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmds.ErrNormal)
+			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
 			return
 		}
 
 		numProviders, _, err := res.Request().Option("num-providers").Int()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		if numProviders < 1 {
-			res.SetError(fmt.Errorf("Number of providers must be greater than 0"), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("Number of providers must be greater than 0"), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -178,7 +174,7 @@ var findProvidersDhtCmd = &cmds.Command{
 
 		c, err := cid.Decode(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -202,13 +198,7 @@ var findProvidersDhtCmd = &cmds.Command{
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			verbose, _, _ := res.Request().Option("v").Bool()
+		cmds.Text: func() func(cmds.Response) (io.Reader, error) {
 			pfm := pfuncMap{
 				notif.FinalPeer: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					if verbose {
@@ -229,48 +219,48 @@ var findProvidersDhtCmd = &cmds.Command{
 				},
 			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
+			return func(res cmds.Response) (io.Reader, error) {
+				verbose, _, _ := res.Request().Option("v").Bool()
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
+
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				buf := new(bytes.Buffer)
 				printEvent(obj, buf, verbose, pfm)
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }
 
 var provideRefDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Announce to the network that you are providing given values.",
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, true, "The key[s] to send provide records for.").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("key", true, true, "The key[s] to send provide records for.").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
-		cmds.BoolOption("recursive", "r", "Recursively provide entire graph.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+		cmdsutil.BoolOption("recursive", "r", "Recursively provide entire graph.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		if n.Routing == nil {
-			res.SetError(errNotOnline, cmds.ErrNormal)
+			res.SetError(errNotOnline, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -280,18 +270,18 @@ var provideRefDhtCmd = &cmds.Command{
 		for _, arg := range req.Arguments() {
 			c, err := cid.Decode(arg)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
 			has, err := n.Blockstore.Has(c)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
 			if !has {
-				res.SetError(fmt.Errorf("block %s not found locally, cannot provide", c), cmds.ErrNormal)
+				res.SetError(fmt.Errorf("block %s not found locally, cannot provide", c), cmdsutil.ErrNormal)
 				return
 			}
 
@@ -328,13 +318,7 @@ var provideRefDhtCmd = &cmds.Command{
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			verbose, _, _ := res.Request().Option("v").Bool()
+		cmds.Text: func() func(res cmds.Response) (io.Reader, error) {
 			pfm := pfuncMap{
 				notif.FinalPeer: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					if verbose {
@@ -343,23 +327,22 @@ var provideRefDhtCmd = &cmds.Command{
 				},
 			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
+			return func(res cmds.Response) (io.Reader, error) {
+				verbose, _, _ := res.Request().Option("v").Bool()
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				buf := new(bytes.Buffer)
 				printEvent(obj, buf, verbose, pfm)
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }
@@ -401,33 +384,33 @@ func provideKeysRec(ctx context.Context, r routing.IpfsRouting, dserv dag.DAGSer
 }
 
 var findPeerDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline:          "Query the DHT for all of the multiaddresses associated with a Peer ID.",
 		ShortDescription: "Outputs a list of newline-delimited multiaddresses.",
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("peerID", true, true, "The ID of the peer to search for."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("peerID", true, true, "The ID of the peer to search for."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmds.ErrNormal)
+			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
 			return
 		}
 
 		pid, err := peer.IDB58Decode(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -462,14 +445,7 @@ var findPeerDhtCmd = &cmds.Command{
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			verbose, _, _ := res.Request().Option("v").Bool()
-
+		cmds.Text: func() func(cmds.Response) (io.Reader, error) {
 			pfm := pfuncMap{
 				notif.FinalPeer: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					pi := obj.Responses[0]
@@ -478,29 +454,31 @@ var findPeerDhtCmd = &cmds.Command{
 					}
 				},
 			}
-			marshal := func(v interface{}) (io.Reader, error) {
+
+			return func(res cmds.Response) (io.Reader, error) {
+				verbose, _, _ := res.Request().Option("v").Bool()
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
+
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				buf := new(bytes.Buffer)
 				printEvent(obj, buf, verbose, pfm)
+
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }
 
 var getValueDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Given a key, query the DHT for its best value.",
 		ShortDescription: `
 Outputs the best value for the given key.
@@ -513,22 +491,22 @@ Different key types can specify other 'best' rules.
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, true, "The key to find a value for."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("key", true, true, "The key to find a value for."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmds.ErrNormal)
+			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -540,7 +518,7 @@ Different key types can specify other 'best' rules.
 
 		dhtkey, err := escapeDhtKey(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -568,14 +546,7 @@ Different key types can specify other 'best' rules.
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			verbose, _, _ := res.Request().Option("v").Bool()
-
+		cmds.Text: func() func(cmds.Response) (io.Reader, error) {
 			pfm := pfuncMap{
 				notif.Value: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					if verbose {
@@ -585,10 +556,17 @@ Different key types can specify other 'best' rules.
 					}
 				},
 			}
-			marshal := func(v interface{}) (io.Reader, error) {
+
+			return func(res cmds.Response) (io.Reader, error) {
+				verbose, _, _ := res.Request().Option("v").Bool()
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
+
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				buf := new(bytes.Buffer)
@@ -597,19 +575,13 @@ Different key types can specify other 'best' rules.
 
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }
 
 var putValueDhtCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Write a key/value pair to the DHT.",
 		ShortDescription: `
 Given a key of the form /foo/bar and a value of any form, this will write that
@@ -630,23 +602,23 @@ NOTE: A value may not exceed 2048 bytes.
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, false, "The key to store the value at."),
-		cmds.StringArg("value", true, false, "The value to store.").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("key", true, false, "The key to store the value at."),
+		cmdsutil.StringArg("value", true, false, "The value to store.").EnableStdin(),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmds.ErrNormal)
+			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -658,7 +630,7 @@ NOTE: A value may not exceed 2048 bytes.
 
 		key, err := escapeDhtKey(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -683,13 +655,7 @@ NOTE: A value may not exceed 2048 bytes.
 		}()
 	},
 	Marshalers: cmds.MarshalerMap{
-		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
-			}
-
-			verbose, _, _ := res.Request().Option("v").Bool()
+		cmds.Text: func() func(cmds.Response) (io.Reader, error) {
 			pfm := pfuncMap{
 				notif.FinalPeer: func(obj *notif.QueryEvent, out io.Writer, verbose bool) {
 					if verbose {
@@ -701,10 +667,15 @@ NOTE: A value may not exceed 2048 bytes.
 				},
 			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
+			return func(res cmds.Response) (io.Reader, error) {
+				verbose, _, _ := res.Request().Option("v").Bool()
+				v, err := unwrapOutput(res.Output())
+				if err != nil {
+					return nil, err
+				}
 				obj, ok := v.(*notif.QueryEvent)
 				if !ok {
-					return nil, u.ErrCast()
+					return nil, e.TypeErr(obj, v)
 				}
 
 				buf := new(bytes.Buffer)
@@ -712,13 +683,7 @@ NOTE: A value may not exceed 2048 bytes.
 
 				return buf, nil
 			}
-
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
-		},
+		}(),
 	},
 	Type: notif.QueryEvent{},
 }

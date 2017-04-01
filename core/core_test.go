@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	context "context"
+
 	"github.com/ipfs/go-ipfs/repo"
 	config "github.com/ipfs/go-ipfs/repo/config"
 	"github.com/ipfs/go-ipfs/thirdparty/testutil"

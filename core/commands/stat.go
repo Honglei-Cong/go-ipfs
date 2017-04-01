@@ -7,17 +7,19 @@ import (
 	"io"
 	"time"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	humanize "gx/ipfs/QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K/go-humanize"
 
 	cmds "github.com/ipfs/go-ipfs/commands"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	protocol "gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
+	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
 	metrics "gx/ipfs/QmdibiN2wzuuXXz4JvqQ1ZGW3eUkoAy1AWznHFau6iePCc/go-libp2p-metrics"
 )
 
 var StatsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Query IPFS statistics.",
 		ShortDescription: `'ipfs stats' is a set of commands to help look at statistics
 for your IPFS node.
@@ -34,7 +36,7 @@ for your IPFS node.`,
 }
 
 var statBwCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Print ipfs bandwidth information.",
 		ShortDescription: `'ipfs stats bw' prints bandwidth information for the ipfs daemon.
 It displays: TotalIn, TotalOut, RateIn, RateOut.
@@ -70,11 +72,11 @@ Example:
     RateOut: 0B/s
 `,
 	},
-	Options: []cmds.Option{
-		cmds.StringOption("peer", "p", "Specify a peer to print bandwidth for."),
-		cmds.StringOption("proto", "t", "Specify a protocol to print bandwidth for."),
-		cmds.BoolOption("poll", "Print bandwidth at an interval.").Default(false),
-		cmds.StringOption("interval", "i", `Time interval to wait between updating output, if 'poll' is true.
+	Options: []cmdsutil.Option{
+		cmdsutil.StringOption("peer", "p", "Specify a peer to print bandwidth for."),
+		cmdsutil.StringOption("proto", "t", "Specify a protocol to print bandwidth for."),
+		cmdsutil.BoolOption("poll", "Print bandwidth at an interval.").Default(false),
+		cmdsutil.StringOption("interval", "i", `Time interval to wait between updating output, if 'poll' is true.
 
     This accepts durations such as "300s", "1.5h" or "2h45m". Valid time units are:
     "ns", "us" (or "µs"), "ms", "s", "m", "h".`).Default("1s"),
@@ -83,34 +85,34 @@ Example:
 	Run: func(req cmds.Request, res cmds.Response) {
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !nd.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		if nd.Reporter == nil {
-			res.SetError(fmt.Errorf("bandwidth reporter disabled in config"), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("bandwidth reporter disabled in config"), cmdsutil.ErrNormal)
 			return
 		}
 
 		pstr, pfound, err := req.Option("peer").String()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		tstr, tfound, err := req.Option("proto").String()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		if pfound && tfound {
-			res.SetError(errors.New("please only specify peer OR protocol"), cmds.ErrClient)
+			res.SetError(errors.New("please only specify peer OR protocol"), cmdsutil.ErrClient)
 			return
 		}
 
@@ -118,7 +120,7 @@ Example:
 		if pfound {
 			checkpid, err := peer.IDB58Decode(pstr)
 			if err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 			pid = checkpid
@@ -126,18 +128,18 @@ Example:
 
 		timeS, _, err := req.Option("interval").String()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		interval, err := time.ParseDuration(timeS)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		doPoll, _, err := req.Option("poll").Bool()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	path "github.com/ipfs/go-ipfs/path"
-
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
 )
 

@@ -13,15 +13,16 @@ import (
 	blocks "github.com/ipfs/go-ipfs/blocks"
 	cmds "github.com/ipfs/go-ipfs/commands"
 	core "github.com/ipfs/go-ipfs/core"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 
 	floodsub "gx/ipfs/QmUpeULWfmtsgCnfuRN3BHsfhHvBxNphoYh4La4CMxGt2Z/floodsub"
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	pstore "gx/ipfs/QmXZSd1qR5BxZkPyuwfT5jpqQFScZccoZvDneXsKzCNHWX/go-libp2p-peerstore"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
 )
 
 var PubsubCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "An experimental publish-subscribe system on ipfs.",
 		ShortDescription: `
 ipfs pubsub allows you to publish messages to a given topic, and also to
@@ -42,7 +43,7 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 }
 
 var PubsubSubCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Subscribe to messages on a given topic.",
 		ShortDescription: `
 ipfs pubsub sub subscribes to messages on a given topic.
@@ -65,58 +66,36 @@ This command outputs data in the following encodings:
 (Specified by the "--encoding" or "--enc" flag)
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("topic", true, false, "String name of topic to subscribe to."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("topic", true, false, "String name of topic to subscribe to."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("discover", "try to discover other peers subscribed to the same topic"),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("discover", "try to discover other peers subscribed to the same topic"),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !n.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		if n.Floodsub == nil {
-			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmdsutil.ErrNormal)
 			return
 		}
 
 		topic := req.Arguments()[0]
 		sub, err := n.Floodsub.Subscribe(topic)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
-
-		out := make(chan interface{})
-		res.SetOutput((<-chan interface{})(out))
-
-		go func() {
-			defer sub.Cancel()
-			defer close(out)
-
-			out <- floodsub.Message{}
-
-			for {
-				msg, err := sub.Next(req.Context())
-				if err == io.EOF || err == context.Canceled {
-					return
-				} else if err != nil {
-					res.SetError(err, cmds.ErrNormal)
-					return
-				}
-
-				out <- msg
-			}
-		}()
 
 		discover, _, _ := req.Option("discover").Bool()
 		if discover {
@@ -131,10 +110,31 @@ This command outputs data in the following encodings:
 				connectToPubSubPeers(req.Context(), n, cid)
 			}()
 		}
+
+		out := make(chan interface{})
+		res.SetOutput((<-chan interface{})(out))
+
+		go func() {
+			defer sub.Cancel()
+			defer close(out)
+
+			for {
+				msg, err := sub.Next(req.Context())
+				if err == io.EOF || err == context.Canceled {
+					return
+				} else if err != nil {
+					res.SetError(err, cmdsutil.ErrNormal)
+					return
+				}
+
+				out <- msg
+			}
+		}()
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: getPsMsgMarshaler(func(m *floodsub.Message) (io.Reader, error) {
-			return bytes.NewReader(m.Data), nil
+			r := bytes.NewReader(m.Data)
+			return r, nil
 		}),
 		"ndpayload": getPsMsgMarshaler(func(m *floodsub.Message) (io.Reader, error) {
 			m.Data = append(m.Data, '\n')
@@ -176,33 +176,25 @@ func connectToPubSubPeers(ctx context.Context, n *core.IpfsNode, cid *cid.Cid) {
 
 func getPsMsgMarshaler(f func(m *floodsub.Message) (io.Reader, error)) func(cmds.Response) (io.Reader, error) {
 	return func(res cmds.Response) (io.Reader, error) {
-		outChan, ok := res.Output().(<-chan interface{})
+		v, err := unwrapOutput(res.Output())
+		if err != nil {
+			return nil, err
+		}
+
+		obj, ok := v.(*floodsub.Message)
 		if !ok {
-			return nil, u.ErrCast()
+			return nil, e.TypeErr(obj, v)
+		}
+		if obj.Message == nil {
+			return strings.NewReader(""), nil
 		}
 
-		marshal := func(v interface{}) (io.Reader, error) {
-			obj, ok := v.(*floodsub.Message)
-			if !ok {
-				return nil, u.ErrCast()
-			}
-			if obj.Message == nil {
-				return strings.NewReader(""), nil
-			}
-
-			return f(obj)
-		}
-
-		return &cmds.ChannelMarshaler{
-			Channel:   outChan,
-			Marshaler: marshal,
-			Res:       res,
-		}, nil
+		return f(obj)
 	}
 }
 
 var PubsubPubCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Publish a message to a given pubsub topic.",
 		ShortDescription: `
 ipfs pubsub pub publishes a message to a specified topic.
@@ -213,25 +205,25 @@ to be used in a production environment.
 To use, the daemon must be run with '--enable-pubsub-experiment'.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("topic", true, false, "Topic to publish to."),
-		cmds.StringArg("data", true, true, "Payload of message to publish.").EnableStdin(),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("topic", true, false, "Topic to publish to."),
+		cmdsutil.StringArg("data", true, true, "Payload of message to publish.").EnableStdin(),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !n.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		if n.Floodsub == nil {
-			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -239,7 +231,7 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 
 		for _, data := range req.Arguments()[1:] {
 			if err := n.Floodsub.Publish(topic, []byte(data)); err != nil {
-				res.SetError(err, cmds.ErrNormal)
+				res.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 		}
@@ -247,7 +239,7 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 }
 
 var PubsubLsCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List subscribed topics by name.",
 		ShortDescription: `
 ipfs pubsub ls lists out the names of topics you are currently subscribed to.
@@ -261,18 +253,18 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !n.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		if n.Floodsub == nil {
-			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmdsutil.ErrNormal)
 			return
 		}
 
@@ -285,7 +277,7 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 }
 
 var PubsubPeersCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "List peers we are currently pubsubbing with.",
 		ShortDescription: `
 ipfs pubsub peers with no arguments lists out the pubsub peers you are
@@ -298,24 +290,24 @@ to be used in a production environment.
 To use, the daemon must be run with '--enable-pubsub-experiment'.
 `,
 	},
-	Arguments: []cmds.Argument{
-		cmds.StringArg("topic", false, false, "topic to list connected peers of"),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("topic", false, false, "topic to list connected peers of"),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !n.OnlineMode() {
-			res.SetError(errNotOnline, cmds.ErrClient)
+			res.SetError(errNotOnline, cmdsutil.ErrClient)
 			return
 		}
 
 		if n.Floodsub == nil {
-			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("experimental pubsub feature not enabled. Run daemon with --enable-pubsub-experiment to use."), cmdsutil.ErrNormal)
 			return
 		}
 

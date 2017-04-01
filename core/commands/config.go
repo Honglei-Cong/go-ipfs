@@ -11,12 +11,13 @@ import (
 	"os/exec"
 	"strings"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	repo "github.com/ipfs/go-ipfs/repo"
 	config "github.com/ipfs/go-ipfs/repo/config"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
-
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 )
 
 type ConfigField struct {
@@ -25,7 +26,7 @@ type ConfigField struct {
 }
 
 var ConfigCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Get and set ipfs config values.",
 		ShortDescription: `
 'ipfs config' controls configuration variables. It works like 'git config'.
@@ -48,13 +49,13 @@ Set the value of the 'Datastore.Path' key:
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.StringArg("key", true, false, "The key of the config entry (e.g. \"Addresses.API\")."),
-		cmds.StringArg("value", false, false, "The value to set the config entry to."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.StringArg("key", true, false, "The key of the config entry (e.g. \"Addresses.API\")."),
+		cmdsutil.StringArg("value", false, false, "The value to set the config entry to."),
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("bool", "Set a boolean value.").Default(false),
-		cmds.BoolOption("json", "Parse stringified JSON.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("bool", "Set a boolean value.").Default(false),
+		cmdsutil.BoolOption("json", "Parse stringified JSON.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		args := req.Arguments()
@@ -63,14 +64,14 @@ Set the value of the 'Datastore.Path' key:
 		// This is a temporary fix until we move the private key out of the config file
 		switch strings.ToLower(key) {
 		case "identity", "identity.privkey":
-			res.SetError(fmt.Errorf("cannot show or change private key through API"), cmds.ErrNormal)
+			res.SetError(fmt.Errorf("cannot show or change private key through API"), cmdsutil.ErrNormal)
 			return
 		default:
 		}
 
 		r, err := fsrepo.Open(req.InvocContext().ConfigRoot)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		defer r.Close()
@@ -83,7 +84,7 @@ Set the value of the 'Datastore.Path' key:
 				var jsonVal interface{}
 				if err := json.Unmarshal([]byte(value), &jsonVal); err != nil {
 					err = fmt.Errorf("failed to unmarshal json. %s", err)
-					res.SetError(err, cmds.ErrNormal)
+					res.SetError(err, cmdsutil.ErrNormal)
 					return
 				}
 
@@ -97,7 +98,7 @@ Set the value of the 'Datastore.Path' key:
 			output, err = getConfig(r, key)
 		}
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		res.SetOutput(output)
@@ -108,14 +109,18 @@ Set the value of the 'Datastore.Path' key:
 				return nil, nil // dont output anything
 			}
 
-			v := res.Output()
-			if v == nil {
-				k := res.Request().Arguments()[0]
-				return nil, fmt.Errorf("config does not contain key: %s", k)
+			if res.Error() != nil {
+				return nil, res.Error()
 			}
+
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+
 			vf, ok := v.(*ConfigField)
 			if !ok {
-				return nil, u.ErrCast()
+				return nil, e.TypeErr(vf, v)
 			}
 
 			buf, err := config.HumanOutput(vf.Value)
@@ -135,7 +140,7 @@ Set the value of the 'Datastore.Path' key:
 }
 
 var configShowCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Output config file contents.",
 		ShortDescription: `
 WARNING: Your private key is stored in the config file, and it will be
@@ -146,32 +151,32 @@ included in the output of this command.
 	Run: func(req cmds.Request, res cmds.Response) {
 		fname, err := config.Filename(req.InvocContext().ConfigRoot)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		data, err := ioutil.ReadFile(fname)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		var cfg map[string]interface{}
 		err = json.Unmarshal(data, &cfg)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		err = scrubValue(cfg, []string{config.IdentityTag, config.PrivKeyTag})
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		output, err := config.HumanOutput(cfg)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -221,7 +226,7 @@ func scrubValue(m map[string]interface{}, key []string) error {
 }
 
 var configEditCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Open the config file for editing in $EDITOR.",
 		ShortDescription: `
 To use 'ipfs config edit', you must have the $EDITOR environment
@@ -232,19 +237,19 @@ variable set to your preferred text editor.
 	Run: func(req cmds.Request, res cmds.Response) {
 		filename, err := config.Filename(req.InvocContext().ConfigRoot)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		err = editConfig(filename)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 		}
 	},
 }
 
 var configReplaceCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Replace the config with <file>.",
 		ShortDescription: `
 Make sure to back up the config file first if necessary, as this operation
@@ -252,27 +257,27 @@ can't be undone.
 `,
 	},
 
-	Arguments: []cmds.Argument{
-		cmds.FileArg("file", true, false, "The file to use as the new config."),
+	Arguments: []cmdsutil.Argument{
+		cmdsutil.FileArg("file", true, false, "The file to use as the new config."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		r, err := fsrepo.Open(req.InvocContext().ConfigRoot)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		defer r.Close()
 
 		file, err := req.Files().NextFile()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		defer file.Close()
 
 		err = replaceConfig(r, file)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 	},

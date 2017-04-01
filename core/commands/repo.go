@@ -9,14 +9,16 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
 	bstore "github.com/ipfs/go-ipfs/blocks/blockstore"
 	cmds "github.com/ipfs/go-ipfs/commands"
+	e "github.com/ipfs/go-ipfs/core/commands/e"
 	corerepo "github.com/ipfs/go-ipfs/core/corerepo"
 	config "github.com/ipfs/go-ipfs/repo/config"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
 	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
 
-	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 )
 
@@ -25,7 +27,7 @@ type RepoVersion struct {
 }
 
 var RepoCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Manipulate the IPFS repo.",
 		ShortDescription: `
 'ipfs repo' is a plumbing command used to manipulate the repo.
@@ -48,7 +50,7 @@ type GcResult struct {
 }
 
 var repoGcCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Perform a garbage collection sweep on the repo.",
 		ShortDescription: `
 'ipfs repo gc' is a plumbing command that will sweep the local
@@ -56,14 +58,14 @@ set of stored objects and remove ones that are not pinned in
 order to reclaim hard disk space.
 `,
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("quiet", "q", "Write minimal output.").Default(false),
-		cmds.BoolOption("stream-errors", "Stream errors.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("stream-errors", "Stream errors.").Default(false),
+		cmdsutil.BoolOption("quiet", "q", "Write minimal output.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -71,11 +73,14 @@ order to reclaim hard disk space.
 
 		gcOutChan := corerepo.GarbageCollectAsync(n, req.Context())
 
-		outChan := make(chan interface{}, cap(gcOutChan))
-		res.SetOutput((<-chan interface{})(outChan))
+		outChan := make(chan interface{})
+		res.SetOutput(outChan)
 
 		go func() {
-			defer close(outChan)
+			defer func() {
+				close(outChan)
+			}()
+
 			if streamErrors {
 				errs := false
 				for res := range gcOutChan {
@@ -87,14 +92,14 @@ order to reclaim hard disk space.
 					}
 				}
 				if errs {
-					res.SetError(fmt.Errorf("encountered errors during gc run"), cmds.ErrNormal)
+					res.SetError(fmt.Errorf("encountered errors during gc run"), cmdsutil.ErrNormal)
 				}
 			} else {
 				err := corerepo.CollectResult(req.Context(), gcOutChan, func(k *cid.Cid) {
 					outChan <- &GcResult{Key: k}
 				})
 				if err != nil {
-					res.SetError(err, cmds.ErrNormal)
+					res.SetError(err, cmdsutil.ErrNormal)
 				}
 			}
 		}()
@@ -102,9 +107,9 @@ order to reclaim hard disk space.
 	Type: GcResult{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			outChan, ok := res.Output().(<-chan interface{})
-			if !ok {
-				return nil, u.ErrCast()
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
 			}
 
 			quiet, _, err := res.Request().Option("quiet").Bool()
@@ -112,35 +117,27 @@ order to reclaim hard disk space.
 				return nil, err
 			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
-				obj, ok := v.(*GcResult)
-				if !ok {
-					return nil, u.ErrCast()
-				}
-
-				if obj.Error != "" {
-					fmt.Fprintf(res.Stderr(), "Error: %s\n", obj.Error)
-					return nil, nil
-				}
-
-				if quiet {
-					return bytes.NewBufferString(obj.Key.String() + "\n"), nil
-				} else {
-					return bytes.NewBufferString(fmt.Sprintf("removed %s\n", obj.Key)), nil
-				}
+			obj, ok := v.(*GcResult)
+			if !ok {
+				return nil, e.TypeErr(obj, v)
 			}
 
-			return &cmds.ChannelMarshaler{
-				Channel:   outChan,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
+			if obj.Error != "" {
+				fmt.Fprintf(res.Stderr(), "Error: %s\n", obj.Error)
+				return nil, nil
+			}
+
+			if quiet {
+				return bytes.NewBufferString(obj.Key.String() + "\n"), nil
+			}
+
+			return bytes.NewBufferString(fmt.Sprintf("removed %s\n", obj.Key)), nil
 		},
 	},
 }
 
 var repoStatCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Get stats for the currently used repo.",
 		ShortDescription: `
 'ipfs repo stat' is a plumbing command that will scan the local
@@ -154,27 +151,31 @@ Version         string The repo version.
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		stat, err := corerepo.RepoStat(n, req.Context())
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		res.SetOutput(stat)
 	},
-	Options: []cmds.Option{
-		cmds.BoolOption("human", "Output RepoSize in MiB.").Default(false),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("human", "Output RepoSize in MiB.").Default(false),
 	},
 	Type: corerepo.Stat{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			stat, ok := res.Output().(*corerepo.Stat)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+			stat, ok := v.(*corerepo.Stat)
 			if !ok {
-				return nil, u.ErrCast()
+				return nil, e.TypeErr(stat, v)
 			}
 
 			human, _, err := res.Request().Option("human").Bool()
@@ -207,7 +208,7 @@ Version         string The repo version.
 }
 
 var RepoFsckCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Remove repo lockfiles.",
 		ShortDescription: `
 'ipfs repo fsck' is a plumbing command that will remove repo and level db
@@ -220,7 +221,7 @@ daemons are running.
 
 		dsPath, err := config.DataStorePath(configRoot)
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -234,17 +235,17 @@ daemons are running.
 
 		err = os.Remove(repoLockFile)
 		if err != nil && !os.IsNotExist(err) {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		err = os.Remove(dsLockFile)
 		if err != nil && !os.IsNotExist(err) {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		err = os.Remove(apiFile)
 		if err != nil && !os.IsNotExist(err) {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -262,13 +263,13 @@ type VerifyProgress struct {
 }
 
 var repoVerifyCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Verify all blocks in repo are not corrupted.",
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmds.ErrNormal)
+			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -301,7 +302,7 @@ var repoVerifyCmd = &cmds.Command{
 			if fails == 0 {
 				out <- &VerifyProgress{Message: "verify complete, all blocks validated."}
 			} else {
-				out <- &VerifyProgress{Message: "verify complete, some blocks were corrupt."}
+				res.SetError(fmt.Errorf("verify complete, some blocks were corrupt"), cmdsutil.ErrNormal)
 			}
 		}()
 
@@ -310,49 +311,44 @@ var repoVerifyCmd = &cmds.Command{
 	Type: VerifyProgress{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			out := res.Output().(<-chan interface{})
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
 
-			marshal := func(v interface{}) (io.Reader, error) {
-				obj, ok := v.(*VerifyProgress)
-				if !ok {
-					return nil, u.ErrCast()
+			obj, ok := v.(*VerifyProgress)
+			if !ok {
+				return nil, e.TypeErr(obj, v)
+			}
+
+			buf := new(bytes.Buffer)
+			if obj.Message != "" {
+				if strings.Contains(obj.Message, "blocks were corrupt") {
+					return nil, fmt.Errorf(obj.Message)
 				}
-
-				buf := new(bytes.Buffer)
-				if obj.Message != "" {
-					if strings.Contains(obj.Message, "blocks were corrupt") {
-						return nil, fmt.Errorf(obj.Message)
-					}
-					if len(obj.Message) < 20 {
-						obj.Message += "             "
-					}
-					fmt.Fprintln(buf, obj.Message)
-					return buf, nil
+				if len(obj.Message) < 20 {
+					obj.Message += "             "
 				}
-
-				fmt.Fprintf(buf, "%d blocks processed.\r", obj.Progress)
+				fmt.Fprintln(buf, obj.Message)
 				return buf, nil
 			}
 
-			return &cmds.ChannelMarshaler{
-				Channel:   out,
-				Marshaler: marshal,
-				Res:       res,
-			}, nil
+			fmt.Fprintf(buf, "%d blocks processed.\r", obj.Progress)
+			return buf, nil
 		},
 	},
 }
 
 var repoVersionCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Show the repo version.",
 		ShortDescription: `
 'ipfs repo version' returns the current repo version.
 `,
 	},
 
-	Options: []cmds.Option{
-		cmds.BoolOption("quiet", "q", "Write minimal output."),
+	Options: []cmdsutil.Option{
+		cmdsutil.BoolOption("quiet", "q", "Write minimal output."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		res.SetOutput(&RepoVersion{
@@ -362,7 +358,14 @@ var repoVersionCmd = &cmds.Command{
 	Type: RepoVersion{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
-			response := res.Output().(*RepoVersion)
+			v, err := unwrapOutput(res.Output())
+			if err != nil {
+				return nil, err
+			}
+			response, ok := v.(*RepoVersion)
+			if !ok {
+				return nil, e.TypeErr(response, v)
+			}
 
 			quiet, _, err := res.Request().Option("quiet").Bool()
 			if err != nil {

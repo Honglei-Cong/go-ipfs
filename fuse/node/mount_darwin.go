@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 
+	"upspin.io/log"
+
 	core "github.com/ipfs/go-ipfs/core"
 
 	"gx/ipfs/QmU1N5xVAUXgo3XRTt6GhJ2SuJEbxj2zRgMS7FpjSR2U83/semver"

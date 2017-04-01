@@ -3,9 +3,10 @@ package offline
 import (
 	"bytes"
 	"context"
+	"testing"
+
 	"github.com/ipfs/go-ipfs/thirdparty/testutil"
 	ds "gx/ipfs/QmRWDav6mzWseLWeYfVd5fvUKiVe9xNH29YfMF438fG364/go-datastore"
-	"testing"
 )
 
 func TestOfflineRouterStorage(t *testing.T) {

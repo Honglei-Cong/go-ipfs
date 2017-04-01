@@ -1,9 +1,13 @@
 package commands
 
-import cmds "github.com/ipfs/go-ipfs/commands"
+import (
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
+
+	cmds "github.com/ipfs/go-ipfs/commands"
+)
 
 var DiagCmd = &cmds.Command{
-	Helptext: cmds.HelpText{
+	Helptext: cmdsutil.HelpText{
 		Tagline: "Generate diagnostic reports.",
 	},
 

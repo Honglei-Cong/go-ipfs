@@ -306,6 +306,22 @@
       "hash": "QmfJHywXQu98UeZtGJBQrPAR6AtmDjjbe3qjTo9piXHPnx",
       "name": "murmur3",
       "version": "0.0.0"
+    },
+    {
+      "hash": "QmRTwaSETX8m9rVAD9QacsoxFMURcuSoLDhf1jtABzCcLP",
+      "name": "go-ipfs-cmds",
+      "version": "0.2.3"
+    },
+    {
+      "hash": "QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C",
+      "name": "go-ipfs-cmdkit",
+      "version": "0.2.0"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n",
+      "name": "go-ipfs-util",
+      "version": "1.2.4"
     }
   ],
   "gxVersion": "0.10.0",

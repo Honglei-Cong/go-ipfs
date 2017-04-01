@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +13,11 @@ import (
 	"strconv"
 	"strings"
 
-	cmds "github.com/ipfs/go-ipfs/commands"
-	config "github.com/ipfs/go-ipfs/repo/config"
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
 
-	context "context"
+	cmds "github.com/ipfs/go-ipfs/commands"
+
+	config "github.com/ipfs/go-ipfs/repo/config"
 )
 
 const (
@@ -54,16 +56,16 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 	}
 
 	// save user-provided encoding
-	previousUserProvidedEncoding, found, err := req.Option(cmds.EncShort).String()
+	previousUserProvidedEncoding, found, err := req.Option(cmdsutil.EncShort).String()
 	if err != nil {
 		return nil, err
 	}
 
 	// override with json to send to server
-	req.SetOption(cmds.EncShort, cmds.JSON)
+	req.SetOption(cmdsutil.EncShort, cmds.JSON)
 
 	// stream channel output
-	req.SetOption(cmds.ChanOpt, "true")
+	req.SetOption(cmdsutil.ChanOpt, "true")
 
 	query, err := getQuery(req)
 	if err != nil {
@@ -112,7 +114,7 @@ func (c *client) Send(req cmds.Request) (cmds.Response, error) {
 		// reset to user provided encoding after sending request
 		// NB: if user has provided an encoding but it is the empty string,
 		// still leave it as JSON.
-		req.SetOption(cmds.EncShort, previousUserProvidedEncoding)
+		req.SetOption(cmdsutil.EncShort, previousUserProvidedEncoding)
 	}
 
 	return res, nil
@@ -136,7 +138,7 @@ func getQuery(req cmds.Request) (string, error) {
 	for _, arg := range args {
 		argDef := argDefs[argDefIndex]
 		// skip ArgFiles
-		for argDef.Type == cmds.ArgFile {
+		for argDef.Type == cmdsutil.ArgFile {
 			argDefIndex++
 			argDef = argDefs[argDefIndex]
 		}
@@ -190,13 +192,13 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 
 	// If we ran into an error
 	if httpRes.StatusCode >= http.StatusBadRequest {
-		e := cmds.Error{}
+		e := cmdsutil.Error{}
 
 		switch {
 		case httpRes.StatusCode == http.StatusNotFound:
 			// handle 404s
 			e.Message = "Command not found."
-			e.Code = cmds.ErrClient
+			e.Code = cmdsutil.ErrClient
 
 		case contentType == plainText:
 			// handle non-marshalled errors
@@ -205,7 +207,7 @@ func getResponse(httpRes *http.Response, req cmds.Request) (cmds.Response, error
 				return nil, err
 			}
 			e.Message = string(mes)
-			e.Code = cmds.ErrNormal
+			e.Code = cmdsutil.ErrNormal
 
 		default:
 			// handle marshalled errors
@@ -245,7 +247,7 @@ func readStreamedJson(req cmds.Request, rr io.Reader, out chan<- interface{}, re
 		if err != nil {
 			if err != io.EOF {
 				log.Error(err)
-				resp.SetError(err, cmds.ErrNormal)
+				resp.SetError(err, cmdsutil.ErrNormal)
 			}
 			return
 		}
