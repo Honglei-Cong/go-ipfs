@@ -13,11 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
-
 	cmds "github.com/ipfs/go-ipfs/commands"
-
 	config "github.com/ipfs/go-ipfs/repo/config"
+
+	"gx/ipfs/QmYiqbfRCkryYvJsxBopy77YEhxNZXTmq5Y2qiKyenc59C/go-ipfs-cmdkit"
 )
 
 const (
