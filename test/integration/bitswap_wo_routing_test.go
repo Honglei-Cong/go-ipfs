@@ -1,10 +1,10 @@
 package integrationtest
 
 import (
+	"context"
 	"bytes"
 	"testing"
 
-	context "context"
 	"github.com/ipfs/go-ipfs/blocks"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/mock"

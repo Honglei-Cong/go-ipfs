@@ -1,12 +1,11 @@
 package mfs
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	ci "github.com/ipfs/go-ipfs/thirdparty/testutil/ci"
-
-	"context"
 
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 )
