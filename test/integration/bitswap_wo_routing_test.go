@@ -1,8 +1,8 @@
 package integrationtest
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/ipfs/go-ipfs/blocks"

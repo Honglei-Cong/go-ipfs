@@ -1,8 +1,8 @@
 package integrationtest
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
