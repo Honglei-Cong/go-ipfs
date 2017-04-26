@@ -3,7 +3,7 @@ package commands
 import (
 	cmds "github.com/ipfs/go-ipfs/commands"
 
-	"gx/ipfs/QmadYQbq2fJpaRE3XhpMLH68NNxmWMwfMQy1ntr1cKf7eo/go-ipfs-cmdkit"
+	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
 )
 
 type IpnsEntry struct {
