@@ -100,7 +100,6 @@ var addPinCmd = &cmds.Command{
 			ch <- added
 		}()
 
-		//go func() {
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 		defer close(out)
@@ -126,7 +125,6 @@ var addPinCmd = &cmds.Command{
 				return
 			}
 		}
-		//}()
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {

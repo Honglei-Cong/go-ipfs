@@ -76,9 +76,7 @@ order to reclaim hard disk space.
 		res.SetOutput(outChan)
 
 		go func() {
-			defer func() {
-				close(outChan)
-			}()
+			defer close(outChan)
 
 			if streamErrors {
 				errs := false

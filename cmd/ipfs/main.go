@@ -318,18 +318,17 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 
 	encTypeStr, found, err := req.Option("encoding").String()
 	if !found || err != nil {
-		//encTypeStr = cmds.Text
-		panic(err)
+		log.Error("error getting encoding - using JSON. reason: ", err)
+		encTypeStr = "json"
 	}
 	encType := cmds.EncodingType(encTypeStr)
-
-	log.Debug("creating RE with encType ", encType)
 
 	var (
 		re     cmds.ResponseEmitter
 		exitCh <-chan int
 	)
 
+	// first if condition checks the command's encoder map, second checks global encoder map (cmd vs. cmds)
 	if enc, ok := cmd.Encoders[encType]; ok {
 		re, exitCh = cli.NewResponseEmitter(os.Stdout, os.Stderr, enc, req)
 	} else if enc, ok := cmds.Encoders[encType]; ok {
@@ -354,7 +353,7 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 	}
 
 	if client != nil && !cmd.External {
-		log.Warning("executing command via API")
+		log.Debug("executing command via API")
 
 		res, err := client.Send(req)
 		if err != nil {
@@ -391,14 +390,15 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 		}()
 	}
 
-	log.Debug("waiting for exitCh ######################################", exitCh)
-	returnCode := <-exitCh
-	log.Debug("exitCh returned $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", returnCode)
-
-	if returnCode != 0 {
-		err = exitErr(returnCode)
+	select {
+	case <- ctx.Done():
+		err = ctx.Err()
+	case returnCode := <-exitCh:
+		if returnCode != 0 {
+			err = exitErr(returnCode)
+		}
 	}
-
+	
 	return err
 }
 
@@ -489,7 +489,6 @@ func commandShouldRunOnDaemon(details cmdDetails, req cmds.Request, root *cmds.C
 }
 
 func isClientError(err error) bool {
-
 	// Somewhat suprisingly, the pointer cast fails to recognize commands.Error
 	// passed as values, so we check both.
 
@@ -497,8 +496,12 @@ func isClientError(err error) bool {
 	switch e := err.(type) {
 	case *cmdsutil.Error:
 		return e.Code == cmdsutil.ErrClient
+	// TODO gpskjsa
+	// if there is trouble, this might be the reason.
+	/*
 	case cmdsutil.Error:
 		return e.Code == cmdsutil.ErrClient
+	*/
 	}
 	return false
 }

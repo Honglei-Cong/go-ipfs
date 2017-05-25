@@ -67,6 +67,9 @@ The output is:
 			})
 
 			err = re.Emit(out)
+			if err != nil {
+				log.Error(err)
+			}
 		} else {
 			fileOrder, _, _ := req.Option("file-order").Bool()
 			next, err := filestore.ListAll(fs, fileOrder)

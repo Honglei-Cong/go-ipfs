@@ -311,15 +311,10 @@ It takes a list of base58 encoded multihashs to remove.
 			go func() {
 				defer re.Close()
 
-				var (
-					err        error
-					v          interface{}
-					someFailed bool
-				)
+				var someFailed bool
 
 				for {
-					v, err = res.Next()
-
+					v, err := res.Next()
 					if err != nil {
 						if err == io.EOF {
 							break
