@@ -320,13 +320,9 @@ var repoVerifyCmd = &cmds.Command{
 
 			buf := new(bytes.Buffer)
 			if strings.Contains(obj.Msg, "was corrupt") {
-				log.Warning("yup: ", obj.Msg)
 				fmt.Fprintln(os.Stdout, obj.Msg)
 				return buf, nil
-			} else {
-				log.Error("nope: ", obj.Msg)
 			}
-
 
 			if obj.Msg != "" {
 				if len(obj.Msg) < 20 {
