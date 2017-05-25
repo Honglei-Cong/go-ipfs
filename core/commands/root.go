@@ -12,8 +12,8 @@ import (
 	unixfs "github.com/ipfs/go-ipfs/core/commands/unixfs"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	"gx/ipfs/QmUZBejTzVRuN8ubr2LC8FG7YexRMsNnzM2s2Pi4JxJd5P/go-ipfs-cmds"
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
 )
 
 var log = logging.Logger("core/commands")
@@ -103,6 +103,7 @@ var rootSubcommands = map[string]*cmds.Command{
 	"commands":  CommandsDaemonCmd,
 	"get":       GetCmd,
 	"filestore": FileStoreCmd,
+	"pubsub":    PubsubCmd,
 }
 
 var rootOldSubcommands = map[string]*oldcmds.Command{
@@ -123,7 +124,6 @@ var rootOldSubcommands = map[string]*oldcmds.Command{
 	"pin":       PinCmd,
 	"ping":      PingCmd,
 	"p2p":       P2PCmd,
-	"pubsub":    PubsubCmd,
 	"refs":      RefsCmd,
 	"repo":      RepoCmd,
 	"resolve":   ResolveCmd,

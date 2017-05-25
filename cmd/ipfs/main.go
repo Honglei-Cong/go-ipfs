@@ -24,15 +24,15 @@ import (
 	"github.com/ipfs/go-ipfs/repo/fsrepo"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	"gx/ipfs/QmUZBejTzVRuN8ubr2LC8FG7YexRMsNnzM2s2Pi4JxJd5P/go-ipfs-cmds"
-	"gx/ipfs/QmUZBejTzVRuN8ubr2LC8FG7YexRMsNnzM2s2Pi4JxJd5P/go-ipfs-cmds/cli"
-	"gx/ipfs/QmUZBejTzVRuN8ubr2LC8FG7YexRMsNnzM2s2Pi4JxJd5P/go-ipfs-cmds/http"
 	loggables "gx/ipfs/QmVesPmqbPp7xRGyY96tnBwzDtVV1nqv4SCVxo5zCqKyH8/go-libp2p-loggables"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	osh "gx/ipfs/QmXuBJ7DR6k3rmUEKtvVMhwjmXDuJgXXPUt4LQXKBMsU93/go-os-helper"
+	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
+	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds/cli"
+	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds/http"
 	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
 	manet "gx/ipfs/Qmf1Gq7N45Rpuw7ev47uWgH6dLPtdnvcMRNPkVBwqjLJg2/go-multiaddr-net"
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
 )
 
 // log is the command logger
@@ -51,7 +51,12 @@ type cmdInvocation struct {
 	cmd  *cmds.Command
 	req  cmds.Request
 	node *core.IpfsNode
-	w    io.WriteCloser
+}
+
+type exitErr int
+
+func (e exitErr) Error() string {
+	return fmt.Sprint("exit code", int(e))
 }
 
 // main roadmap:
@@ -111,8 +116,6 @@ func mainRet() int {
 		}
 	}
 
-	invoc.w = os.Stdout
-
 	// parse the commandline into a command invocation
 	parseErr := invoc.Parse(ctx, os.Args[1:])
 
@@ -158,6 +161,10 @@ func mainRet() int {
 
 	err = invoc.Run(ctx)
 	if err != nil {
+		if code, ok := err.(exitErr); ok {
+			return int(code)
+		}
+
 		printErr(err)
 
 		// if this error was a client error, print short help too.
@@ -186,7 +193,7 @@ func (i *cmdInvocation) Run(ctx context.Context) error {
 		u.Debug = true
 	}
 
-	err = callCommand(ctx, i.req, Root, i.cmd, i.w)
+	err = callCommand(ctx, i.req, Root, i.cmd)
 	return err
 }
 
@@ -286,7 +293,7 @@ func callPreCommandHooks(ctx context.Context, details cmdDetails, req cmds.Reque
 	return nil
 }
 
-func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd *cmds.Command, w io.WriteCloser) error {
+func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd *cmds.Command) error {
 	log.Info(config.EnvDir, " ", req.InvocContext().ConfigRoot)
 
 	err := req.SetRootContext(ctx)
@@ -311,21 +318,22 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 
 	encTypeStr, found, err := req.Option("encoding").String()
 	if !found || err != nil {
-		panic("omg wtf " + err.Error())
+		//encTypeStr = cmds.Text
+		panic(err)
 	}
 	encType := cmds.EncodingType(encTypeStr)
 
 	log.Debug("creating RE with encType ", encType)
 
 	var (
-		re    cmds.ResponseEmitter
-		errCh <-chan *cmdsutil.Error
+		re     cmds.ResponseEmitter
+		exitCh <-chan int
 	)
 
 	if enc, ok := cmd.Encoders[encType]; ok {
-		re, errCh = cli.NewResponseEmitter(w, enc, req)
+		re, exitCh = cli.NewResponseEmitter(os.Stdout, os.Stderr, enc, req)
 	} else if enc, ok := cmds.Encoders[encType]; ok {
-		re, errCh = cli.NewResponseEmitter(w, enc, req)
+		re, exitCh = cli.NewResponseEmitter(os.Stdout, os.Stderr, enc, req)
 	} else {
 		return fmt.Errorf("could not find matching encoder for enctype %#v", encType)
 	}
@@ -347,20 +355,18 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 
 	if client != nil && !cmd.External {
 		log.Warning("executing command via API")
+
 		res, err := client.Send(req)
-		log.Debug("client.Send returned", res, err)
 		if err != nil {
 			if isConnRefused(err) {
 				err = repo.ErrApiNotRunning
 			}
-			err = wrapContextCanceled(err)
-			log.Debug("callCommands returns ", err)
-			return err
+
+			return wrapContextCanceled(err)
 		}
 
 		go func() {
 			err = cmds.Copy(re, res)
-			log.Debug("api response copied to re, err=", err)
 			if err != nil {
 				re.SetError(err, cmdsutil.ErrNormal)
 			}
@@ -385,14 +391,12 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 		}()
 	}
 
-	log.Debug("waiting for errCh ######################################", errCh)
-	err = <-errCh
-	log.Debug("errCh returned $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", err)
-	log.Debug("callCommands returns ", err)
+	log.Debug("waiting for exitCh ######################################", exitCh)
+	returnCode := <-exitCh
+	log.Debug("exitCh returned $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$", returnCode)
 
-	// if we don't do this, an err==nil will return false because there is a concrete type
-	if e, ok := err.(*cmdsutil.Error); ok && e == nil {
-		return nil
+	if returnCode != 0 {
+		err = exitErr(returnCode)
 	}
 
 	return err

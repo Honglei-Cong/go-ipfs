@@ -16,7 +16,7 @@ import (
 	config "github.com/ipfs/go-ipfs/repo/config"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
 
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 )
 
 const (
@@ -64,6 +64,9 @@ environment variable:
 		return nil
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
+		// needs to be called at least once
+		res.SetOutput(nil)
+
 		if req.InvocContext().Online {
 			res.SetError(errors.New("init must be run offline only!"), cmdsutil.ErrNormal)
 			return

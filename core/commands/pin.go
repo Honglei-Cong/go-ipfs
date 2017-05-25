@@ -17,7 +17,7 @@ import (
 	uio "github.com/ipfs/go-ipfs/unixfs/io"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 )
 
 var PinCmd = &cmds.Command{
@@ -84,6 +84,8 @@ var addPinCmd = &cmds.Command{
 			return
 		}
 
+		out := make(chan interface{})
+		res.SetOutput((<-chan interface{})(out))
 		v := new(dag.ProgressTracker)
 		ctx := v.DeriveContext(req.Context())
 
@@ -97,32 +99,34 @@ var addPinCmd = &cmds.Command{
 			}
 			ch <- added
 		}()
-		out := make(chan interface{})
-		res.SetOutput((<-chan interface{})(out))
-		go func() {
-			ticker := time.NewTicker(500 * time.Millisecond)
-			defer ticker.Stop()
-			defer close(out)
-			for {
-				select {
-				case val, ok := <-ch:
-					if !ok {
-						// error already set just return
-						return
-					}
-					if pv := v.Value(); pv != 0 {
-						out <- &AddPinOutput{Progress: v.Value()}
-					}
-					out <- &AddPinOutput{Pins: cidsToStrings(val)}
-					return
-				case <-ticker.C:
-					out <- &AddPinOutput{Progress: v.Value()}
-				case <-ctx.Done():
-					res.SetError(ctx.Err(), cmdsutil.ErrNormal)
+
+		//go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		defer close(out)
+		for {
+			select {
+			case val, ok := <-ch:
+				log.Debugf("select/<-ch:%v, ok:%v, v:%v", val, ok, v)
+				if !ok {
+					// error already set just return
 					return
 				}
+
+				if pv := v.Value(); pv != 0 {
+					out <- &AddPinOutput{Progress: v.Value()}
+				}
+				out <- &AddPinOutput{Pins: cidsToStrings(val)}
+				return
+			case <-ticker.C:
+				out <- &AddPinOutput{Progress: v.Value()}
+			case <-ctx.Done():
+				log.Error(ctx.Err())
+				res.SetError(ctx.Err(), cmdsutil.ErrNormal)
+				return
 			}
-		}()
+		}
+		//}()
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {

@@ -17,7 +17,7 @@ import (
 	config "github.com/ipfs/go-ipfs/repo/config"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
 
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 )
 
 type ConfigField struct {
@@ -61,6 +61,15 @@ Set the value of the 'Datastore.Path' key:
 		args := req.Arguments()
 		key := args[0]
 
+		var output *ConfigField
+		defer func() {
+			if output != nil {
+				res.SetOutput(output)
+			} else {
+				res.SetOutput(nil)
+			}
+		}()
+
 		// This is a temporary fix until we move the private key out of the config file
 		switch strings.ToLower(key) {
 		case "identity", "identity.privkey":
@@ -75,8 +84,6 @@ Set the value of the 'Datastore.Path' key:
 			return
 		}
 		defer r.Close()
-
-		var output *ConfigField
 		if len(args) == 2 {
 			value := args[1]
 
@@ -101,7 +108,6 @@ Set the value of the 'Datastore.Path' key:
 			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
-		res.SetOutput(output)
 	},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
@@ -261,6 +267,9 @@ can't be undone.
 		cmdsutil.FileArg("file", true, false, "The file to use as the new config."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
+		// has to be called
+		res.SetOutput(nil)
+
 		r, err := fsrepo.Open(req.InvocContext().ConfigRoot)
 		if err != nil {
 			res.SetError(err, cmdsutil.ErrNormal)

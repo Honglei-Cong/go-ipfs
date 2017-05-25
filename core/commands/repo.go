@@ -18,7 +18,7 @@ import (
 	lockfile "github.com/ipfs/go-ipfs/repo/fsrepo/lock"
 
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 )
 
 type RepoVersion struct {
@@ -273,41 +273,39 @@ var repoVerifyCmd = &cmds.Command{
 		}
 
 		out := make(chan interface{})
-		go func() {
-			defer close(out)
-			bs := bstore.NewBlockstore(nd.Repo.Datastore())
-
-			bs.HashOnRead(true)
-
-			keys, err := bs.AllKeysChan(req.Context())
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			var fails int
-			var i int
-			for k := range keys {
-				_, err := bs.Get(k)
-				if err != nil {
-					out <- &VerifyProgress{
-						Message: fmt.Sprintf("block %s was corrupt (%s)", k, err),
-					}
-					fails++
-				}
-				i++
-				out <- &VerifyProgress{Progress: i}
-			}
-			if fails == 0 {
-				out <- &VerifyProgress{Message: "verify complete, all blocks validated."}
-			} else {
-				res.SetError(fmt.Errorf("verify complete, some blocks were corrupt"), cmdsutil.ErrNormal)
-			}
-		}()
-
 		res.SetOutput((<-chan interface{})(out))
+		defer close(out)
+
+		bs := bstore.NewBlockstore(nd.Repo.Datastore())
+		bs.HashOnRead(true)
+
+		keys, err := bs.AllKeysChan(req.Context())
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		var fails int
+		var i int
+		for k := range keys {
+			_, err := bs.Get(k)
+			if err != nil {
+				out <- &VerifyProgress{
+					Message: fmt.Sprintf("block %s was corrupt (%s)", k, err),
+				}
+				fails++
+			}
+			i++
+			out <- &VerifyProgress{Progress: i}
+		}
+
+		if fails == 0 {
+			out <- &VerifyProgress{Message: "verify complete, all blocks validated."}
+		} else {
+			res.SetError(fmt.Errorf("verify complete, some blocks were corrupt"), cmdsutil.ErrNormal)
+		}
 	},
-	Type: VerifyProgress{},
+	Type: &VerifyProgress{},
 	Marshalers: cmds.MarshalerMap{
 		cmds.Text: func(res cmds.Response) (io.Reader, error) {
 			v, err := unwrapOutput(res.Output())
@@ -322,8 +320,9 @@ var repoVerifyCmd = &cmds.Command{
 
 			buf := new(bytes.Buffer)
 			if obj.Message != "" {
-				if strings.Contains(obj.Message, "blocks were corrupt") {
-					return nil, fmt.Errorf(obj.Message)
+				if strings.Contains(obj.Message, " was corrupt (") {
+					fmt.Fprintln(os.Stdout, obj.Message)
+					return buf, nil
 				}
 				if len(obj.Message) < 20 {
 					obj.Message += "             "

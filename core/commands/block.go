@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/go-ipfs/blocks"
 	util "github.com/ipfs/go-ipfs/blocks/blockstore/util"
 	e "github.com/ipfs/go-ipfs/core/commands/e"
-	"gx/ipfs/QmUZBejTzVRuN8ubr2LC8FG7YexRMsNnzM2s2Pi4JxJd5P/go-ipfs-cmds"
-	"gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
 
 	mh "gx/ipfs/QmVGtdTZdTFaLsaj2RwdVG8jcjNNcp1DE914DKZ2kHmXHw/go-multihash"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
@@ -63,10 +63,7 @@ on raw IPFS blocks. It outputs the following to stdout:
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		b, err := getBlockForKey(req, req.Arguments()[0])
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -106,10 +103,7 @@ It outputs to stdout, and <key> is a base58 encoded multihash.
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		b, err := getBlockForKey(req, req.Arguments()[0])
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -140,37 +134,25 @@ It reads from stdin, and <key> is a base58 encoded multihash.
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		file, err := req.Files().NextFile()
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		data, err := ioutil.ReadAll(file)
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		err = file.Close()
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -190,11 +172,7 @@ It reads from stdin, and <key> is a base58 encoded multihash.
 			pref.Codec = cid.DagProtobuf
 		default:
 			err := fmt.Errorf("unrecognized format: %s", format)
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
-
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -202,48 +180,33 @@ It reads from stdin, and <key> is a base58 encoded multihash.
 		mhtval, ok := mh.Names[mhtype]
 		if !ok {
 			err := fmt.Errorf("unrecognized multihash function: %s", mhtype)
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		pref.MhType = mhtval
 
 		mhlen, _, err := req.Option("mhlen").Int()
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		pref.MhLength = mhlen
 
 		bcid, err := pref.Sum(data)
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		b, err := blocks.NewBlockWithCid(data, bcid)
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
 		k, err := n.Blocks.AddBlock(b)
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -309,10 +272,7 @@ It takes a list of base58 encoded multihashs to remove.
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 		hashes := req.Arguments()
@@ -323,10 +283,7 @@ It takes a list of base58 encoded multihashs to remove.
 			c, err := cid.Decode(hash)
 			if err != nil {
 				err = fmt.Errorf("invalid content id: %s (%s)", hash, err)
-				err2 := re.SetError(err, cmdsutil.ErrNormal)
-				if err2 != nil {
-					log.Error(err)
-				}
+				re.SetError(err, cmdsutil.ErrNormal)
 				return
 			}
 
@@ -338,10 +295,7 @@ It takes a list of base58 encoded multihashs to remove.
 		})
 
 		if err != nil {
-			err2 := re.SetError(err, cmdsutil.ErrNormal)
-			if err2 != nil {
-				log.Error(err)
-			}
+			re.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
 
@@ -376,15 +330,9 @@ It takes a list of base58 encoded multihashs to remove.
 						}
 
 						if e, ok := err.(*cmdsutil.Error); ok {
-							err := re.SetError(e.Message, e.Code)
-							if err != nil {
-								log.Error(err)
-							}
+							re.SetError(e.Message, e.Code)
 						} else {
-							err2 := re.SetError(err, cmdsutil.ErrNormal)
-							if err2 != nil {
-								log.Error(err)
-							}
+							re.SetError(err, cmdsutil.ErrNormal)
 						}
 
 						return
@@ -409,10 +357,7 @@ It takes a list of base58 encoded multihashs to remove.
 				}
 
 				if someFailed {
-					err := re.SetError("some blocks not removed", cmdsutil.ErrNormal)
-					if err != nil {
-						log.Error(err)
-					}
+					re.SetError("some blocks not removed", cmdsutil.ErrNormal)
 				}
 			}()
 

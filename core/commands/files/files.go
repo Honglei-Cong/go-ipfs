@@ -18,7 +18,7 @@ import (
 	path "github.com/ipfs/go-ipfs/path"
 	ft "github.com/ipfs/go-ipfs/unixfs"
 	uio "github.com/ipfs/go-ipfs/unixfs/io"
-	cmdsutil "gx/ipfs/Qmf7G7FikwUsm48Jm4Yw4VBGNZuyRaAMzpWDJcW8V71uV2/go-ipfs-cmdkit"
+	cmdsutil "gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
@@ -258,6 +258,8 @@ var FilesCpCmd = &cmds.Command{
 				return
 			}
 		}
+
+		res.SetOutput(nil)
 	},
 }
 
@@ -567,6 +569,8 @@ Example:
 			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
+
+		res.SetOutput(nil)
 	},
 }
 
@@ -692,6 +696,8 @@ stat' on the file or any of its ancestors.
 			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
+
+		res.SetOutput(nil)
 	},
 }
 
@@ -737,7 +743,7 @@ Examples:
 			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
-
+		res.SetOutput(nil)
 	},
 }
 
@@ -769,6 +775,8 @@ are run with the '--flush=false'.
 			res.SetError(err, cmdsutil.ErrNormal)
 			return
 		}
+
+		res.SetOutput(nil)
 	},
 }
 
@@ -794,6 +802,8 @@ Remove files or directories.
 		cmdsutil.BoolOption("recursive", "r", "Recursively remove directories."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
+		defer res.SetOutput(nil)
+
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
 			res.SetError(err, cmdsutil.ErrNormal)
