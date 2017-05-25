@@ -257,7 +257,7 @@ daemons are running.
 }
 
 type VerifyProgress struct {
-	Message  string
+	Msg  string
 	Progress int
 }
 
@@ -291,7 +291,7 @@ var repoVerifyCmd = &cmds.Command{
 			_, err := bs.Get(k)
 			if err != nil {
 				out <- &VerifyProgress{
-					Message: fmt.Sprintf("block %s was corrupt (%s)", k, err),
+					Msg: fmt.Sprintf("block %s was corrupt (%s)", k, err),
 				}
 				fails++
 			}
@@ -300,7 +300,7 @@ var repoVerifyCmd = &cmds.Command{
 		}
 
 		if fails == 0 {
-			out <- &VerifyProgress{Message: "verify complete, all blocks validated."}
+			out <- &VerifyProgress{Msg: "verify complete, all blocks validated."}
 		} else {
 			res.SetError(fmt.Errorf("verify complete, some blocks were corrupt"), cmdsutil.ErrNormal)
 		}
@@ -319,15 +319,20 @@ var repoVerifyCmd = &cmds.Command{
 			}
 
 			buf := new(bytes.Buffer)
-			if obj.Message != "" {
-				if strings.Contains(obj.Message, " was corrupt (") {
-					fmt.Fprintln(os.Stdout, obj.Message)
-					return buf, nil
+			if strings.Contains(obj.Msg, "was corrupt") {
+				log.Warning("yup: ", obj.Msg)
+				fmt.Fprintln(os.Stdout, obj.Msg)
+				return buf, nil
+			} else {
+				log.Error("nope: ", obj.Msg)
+			}
+
+
+			if obj.Msg != "" {
+				if len(obj.Msg) < 20 {
+					obj.Msg += "             "
 				}
-				if len(obj.Message) < 20 {
-					obj.Message += "             "
-				}
-				fmt.Fprintln(buf, obj.Message)
+				fmt.Fprintln(buf, obj.Msg)
 				return buf, nil
 			}
 
