@@ -14,8 +14,8 @@ import (
 	oldcmds "github.com/ipfs/go-ipfs/commands"
 	e "github.com/ipfs/go-ipfs/core/commands/e"
 
+	cmds "gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
 	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
-	cmds "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 )
 
 type commandEncoder struct {
@@ -77,7 +77,7 @@ func CommandsCmd(root *cmds.Command) *cmds.Command {
 				log.Error(err)
 			}
 		},
-		Encoders: map[cmds.EncodingType]func(cmds.Request) func(io.Writer) cmds.Encoder{
+		Encoders: cmds.EncoderMap{
 			cmds.Text: func(req cmds.Request) func(io.Writer) cmds.Encoder {
 				return func(w io.Writer) cmds.Encoder { return &commandEncoder{w} }
 			},

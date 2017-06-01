@@ -11,8 +11,8 @@ import (
 	corecommands "github.com/ipfs/go-ipfs/core/commands"
 	config "github.com/ipfs/go-ipfs/repo/config"
 
-	cmds "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
-	cmdsHttp "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds/http"
+	cmds "gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
+	cmdsHttp "gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds/http"
 )
 
 const originEnvKey = "API_ORIGIN"

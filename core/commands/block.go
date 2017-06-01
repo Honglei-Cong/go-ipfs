@@ -10,8 +10,8 @@ import (
 	"github.com/ipfs/go-ipfs/blocks"
 	util "github.com/ipfs/go-ipfs/blocks/blockstore/util"
 	e "github.com/ipfs/go-ipfs/core/commands/e"
+	"gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
 	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
-	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 
 	mh "gx/ipfs/QmVGtdTZdTFaLsaj2RwdVG8jcjNNcp1DE914DKZ2kHmXHw/go-multihash"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
@@ -76,7 +76,7 @@ on raw IPFS blocks. It outputs the following to stdout:
 		}
 	},
 	Type: BlockStat{},
-	Encoders: map[cmds.EncodingType]func(cmds.Request) func(io.Writer) cmds.Encoder{
+	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(w io.Writer, v interface{}) error {
 			bs, ok := v.(*BlockStat)
 			if !ok {
@@ -218,7 +218,7 @@ It reads from stdin, and <key> is a base58 encoded multihash.
 			log.Error(err)
 		}
 	},
-	Encoders: map[cmds.EncodingType]func(cmds.Request) func(io.Writer) cmds.Encoder{
+	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(w io.Writer, v interface{}) error {
 			bs, ok := v.(*BlockStat)
 			if !ok {

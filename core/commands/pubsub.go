@@ -15,7 +15,7 @@ import (
 	pstore "gx/ipfs/QmXZSd1qR5BxZkPyuwfT5jpqQFScZccoZvDneXsKzCNHWX/go-libp2p-peerstore"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
-	cmds "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
+	cmds "gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
 )
 
 var PubsubCmd = &cmds.Command{
@@ -121,7 +121,7 @@ This command outputs data in the following encodings:
 			re.Emit(msg)
 		}
 	},
-	Encoders: map[cmds.EncodingType]func(cmds.Request) func(io.Writer) cmds.Encoder{
+	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.MakeEncoder(func(w io.Writer, v interface{}) error {
 			m, ok := v.(*floodsub.Message)
 			if !ok {
@@ -309,7 +309,7 @@ To use, the daemon must be run with '--enable-pubsub-experiment'.
 		}
 	},
 	Type: "",
-	Encoders: map[cmds.EncodingType]func(cmds.Request) func(io.Writer) cmds.Encoder{
+	Encoders: cmds.EncoderMap{
 		cmds.Text: cmds.Encoders[cmds.TextNewline],
 	},
 }
