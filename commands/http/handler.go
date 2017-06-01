@@ -16,7 +16,7 @@ import (
 
 	cmds "github.com/ipfs/go-ipfs/commands"
 	cors "gx/ipfs/QmPG2kW5t27LuHgHnvhUwbHCNHAt2eUcb4gPHqofrESUdB/cors"
-	cmdsutil "gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 )
@@ -197,7 +197,7 @@ func (i internalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func guessMimeType(res cmds.Response) (string, error) {
 	// Try to guess mimeType from the encoding option
-	enc, found, err := res.Request().Option(cmdsutil.EncShort).String()
+	enc, found, err := res.Request().Option(cmdkit.EncShort).String()
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +226,7 @@ func sendResponse(w http.ResponseWriter, r *http.Request, res cmds.Response, req
 	status := http.StatusOK
 	// if response contains an error, write an HTTP error status code
 	if e := res.Error(); e != nil {
-		if e.Code == cmdsutil.ErrClient {
+		if e.Code == cmdkit.ErrClient {
 			status = http.StatusBadRequest
 		} else {
 			status = http.StatusInternalServerError

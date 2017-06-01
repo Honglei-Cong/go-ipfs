@@ -17,7 +17,7 @@ import (
 	uio "github.com/ipfs/go-ipfs/unixfs/io"
 	unixfspb "github.com/ipfs/go-ipfs/unixfs/pb"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
 )
 
@@ -37,7 +37,7 @@ type LsOutput struct {
 }
 
 var LsCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List directory contents for Unix filesystem objects.",
 		ShortDescription: `
 Displays the contents of an IPFS or IPNS object(s) at the given path, with
@@ -49,29 +49,29 @@ The JSON output contains type information.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, true, "The path to the IPFS object(s) to list links from.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, true, "The path to the IPFS object(s) to list links from.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("headers", "v", "Print table headers (Hash, Size, Name).").Default(false),
-		cmdsutil.BoolOption("resolve-type", "Resolve linked objects to find out their types.").Default(true),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("headers", "v", "Print table headers (Hash, Size, Name).").Default(false),
+		cmdkit.BoolOption("resolve-type", "Resolve linked objects to find out their types.").Default(true),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		// get options early -> exit early in case of error
 		if _, _, err := req.Option("headers").Bool(); err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		resolve, _, err := req.Option("resolve-type").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -88,7 +88,7 @@ The JSON output contains type information.
 		for _, fpath := range paths {
 			p, err := path.ParsePath(fpath)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -99,7 +99,7 @@ The JSON output contains type information.
 
 			dagnode, err := core.Resolve(req.Context(), nd.Namesys, r, p)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			dagnodes = append(dagnodes, dagnode)
@@ -110,13 +110,13 @@ The JSON output contains type information.
 		for i, dagnode := range dagnodes {
 			dir, err := uio.NewDirectoryFromNode(nd.DAG, dagnode)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			links, err := dir.Links(req.Context())
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -133,14 +133,14 @@ The JSON output contains type information.
 					// not an error
 					linkNode = nil
 				} else if err != nil {
-					res.SetError(err, cmdsutil.ErrNormal)
+					res.SetError(err, cmdkit.ErrNormal)
 					return
 				}
 
 				if pn, ok := linkNode.(*merkledag.ProtoNode); ok {
 					d, err := unixfs.FromBytes(pn.Data())
 					if err != nil {
-						res.SetError(err, cmdsutil.ErrNormal)
+						res.SetError(err, cmdkit.ErrNormal)
 						return
 					}
 

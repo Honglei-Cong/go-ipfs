@@ -12,12 +12,12 @@ import (
 
 	ipldcbor "gx/ipfs/QmNrbCt8j9DT5W9Pmjy2SdudT9k8GpaDr4sRuFix3BXhgR/go-ipld-cbor"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
 )
 
 var DagCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Interact with ipld dag objects.",
 		ShortDescription: `
 'ipfs dag' is used for creating and manipulating dag objects.
@@ -37,30 +37,30 @@ type OutputObject struct {
 }
 
 var DagPutCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Add a dag node to ipfs.",
 		ShortDescription: `
 'ipfs dag put' accepts input from a file or stdin and parses it
 into an object of the specified format.
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.FileArg("object data", true, false, "The object to put").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.FileArg("object data", true, false, "The object to put").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("format", "f", "Format that the object will be added as.").Default("cbor"),
-		cmdsutil.StringOption("input-enc", "Format that the input object will be.").Default("json"),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("format", "f", "Format that the object will be added as.").Default("cbor"),
+		cmdkit.StringOption("input-enc", "Format that the input object will be.").Default("json"),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		fi, err := req.Files().NextFile()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -71,13 +71,13 @@ into an object of the specified format.
 		case "json":
 			nd, err := convertJsonToType(fi, format)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			c, err := n.DAG.Add(nd)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -86,20 +86,20 @@ into an object of the specified format.
 		case "raw":
 			nd, err := convertRawToType(fi, format)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			c, err := n.DAG.Add(nd)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			res.SetOutput(&OutputObject{Cid: c})
 			return
 		default:
-			res.SetError(fmt.Errorf("unrecognized input encoding: %s", ienc), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("unrecognized input encoding: %s", ienc), cmdkit.ErrNormal)
 			return
 		}
 	},
@@ -122,31 +122,31 @@ into an object of the specified format.
 }
 
 var DagGetCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Get a dag node from ipfs.",
 		ShortDescription: `
 'ipfs dag get' fetches a dag node from ipfs and prints it out in the specifed format.
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ref", true, false, "The object to get").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ref", true, false, "The object to get").EnableStdin(),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		p, err := path.ParsePath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		obj, rem, err := n.Resolver.ResolveToLastNode(req.Context(), p)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -154,7 +154,7 @@ var DagGetCmd = &cmds.Command{
 		if len(rem) > 0 {
 			final, _, err := obj.Resolve(rem)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			out = final

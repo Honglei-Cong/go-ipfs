@@ -17,11 +17,11 @@ import (
 	uio "github.com/ipfs/go-ipfs/unixfs/io"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var PinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Pin (and unpin) objects to local storage.",
 	},
 
@@ -44,23 +44,23 @@ type AddPinOutput struct {
 }
 
 var addPinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Pin objects to local storage.",
 		ShortDescription: "Stores an IPFS object(s) from a given path locally to disk.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, true, "Path to object(s) to be pinned.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, true, "Path to object(s) to be pinned.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("recursive", "r", "Recursively pin the object linked to by the specified object(s).").Default(true),
-		cmdsutil.BoolOption("progress", "Show progress"),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("recursive", "r", "Recursively pin the object linked to by the specified object(s).").Default(true),
+		cmdkit.BoolOption("progress", "Show progress"),
 	},
 	Type: AddPinOutput{},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -69,7 +69,7 @@ var addPinCmd = &cmds.Command{
 		// set recursive flag
 		recursive, _, err := req.Option("recursive").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		showProgress, _, _ := req.Option("progress").Bool()
@@ -77,7 +77,7 @@ var addPinCmd = &cmds.Command{
 		if !showProgress {
 			added, err := corerepo.Pin(n, req.Context(), req.Arguments(), recursive)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			res.SetOutput(&AddPinOutput{Pins: cidsToStrings(added)})
@@ -94,7 +94,7 @@ var addPinCmd = &cmds.Command{
 			defer close(ch)
 			added, err := corerepo.Pin(n, ctx, req.Arguments(), recursive)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			ch <- added
@@ -121,7 +121,7 @@ var addPinCmd = &cmds.Command{
 				out <- &AddPinOutput{Progress: v.Value()}
 			case <-ctx.Done():
 				log.Error(ctx.Err())
-				res.SetError(ctx.Err(), cmdsutil.ErrNormal)
+				res.SetError(ctx.Err(), cmdkit.ErrNormal)
 				return
 			}
 		}
@@ -169,7 +169,7 @@ var addPinCmd = &cmds.Command{
 }
 
 var rmPinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Remove pinned objects from local storage.",
 		ShortDescription: `
 Removes the pin from the given object allowing it to be garbage
@@ -177,30 +177,30 @@ collected if needed. (By default, recursively. Use -r=false for direct pins.)
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, true, "Path to object(s) to be unpinned.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, true, "Path to object(s) to be unpinned.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("recursive", "r", "Recursively unpin the object linked to by the specified object(s).").Default(true),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("recursive", "r", "Recursively unpin the object linked to by the specified object(s).").Default(true),
 	},
 	Type: PinOutput{},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		// set recursive flag
 		recursive, _, err := req.Option("recursive").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		removed, err := corerepo.Unpin(n, req.Context(), req.Arguments(), recursive)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -228,7 +228,7 @@ collected if needed. (By default, recursively. Use -r=false for direct pins.)
 }
 
 var listPinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List objects pinned to local storage.",
 		ShortDescription: `
 Returns a list of objects that are pinned locally.
@@ -271,23 +271,23 @@ Example:
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", false, true, "Path to object(s) to be listed."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", false, true, "Path to object(s) to be listed."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("type", "t", "The type of pinned keys to list. Can be \"direct\", \"indirect\", \"recursive\", or \"all\".").Default("all"),
-		cmdsutil.BoolOption("quiet", "q", "Write just hashes of objects.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("type", "t", "The type of pinned keys to list. Can be \"direct\", \"indirect\", \"recursive\", or \"all\".").Default("all"),
+		cmdkit.BoolOption("quiet", "q", "Write just hashes of objects.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		typeStr, _, err := req.Option("type").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -295,7 +295,7 @@ Example:
 		case "all", "direct", "indirect", "recursive":
 		default:
 			err = fmt.Errorf("Invalid type '%s', must be one of {direct, indirect, recursive, all}", typeStr)
-			res.SetError(err, cmdsutil.ErrClient)
+			res.SetError(err, cmdkit.ErrClient)
 			return
 		}
 
@@ -308,7 +308,7 @@ Example:
 		}
 
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 		} else {
 			res.SetOutput(&RefKeyList{Keys: keys})
 		}
@@ -344,7 +344,7 @@ Example:
 }
 
 var updatePinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Update a recursive pin",
 		ShortDescription: `
 Updates one pin to another, making sure that all objects in the new pin are
@@ -353,36 +353,36 @@ new pin and removing the old one.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("from-path", true, false, "Path to old object."),
-		cmdsutil.StringArg("to-path", true, false, "Path to new object to be pinned."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("from-path", true, false, "Path to old object."),
+		cmdkit.StringArg("to-path", true, false, "Path to new object to be pinned."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("unpin", "Remove the old pin.").Default(true),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("unpin", "Remove the old pin.").Default(true),
 	},
 	Type: PinOutput{},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		unpin, _, err := req.Option("unpin").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		from, err := path.ParsePath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		to, err := path.ParsePath(req.Arguments()[1])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -393,19 +393,19 @@ new pin and removing the old one.
 
 		fromc, err := core.ResolveToCid(req.Context(), n.Namesys, r, from)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		toc, err := core.ResolveToCid(req.Context(), n.Namesys, r, to)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		err = n.Pinning.Update(req.Context(), fromc, toc, unpin)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -426,17 +426,17 @@ new pin and removing the old one.
 }
 
 var verifyPinCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Verify that recursive pins are complete.",
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "Also write the hashes of non-broken pins."),
-		cmdsutil.BoolOption("quiet", "q", "Write just hashes of broken pins."),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "Also write the hashes of non-broken pins."),
+		cmdkit.BoolOption("quiet", "q", "Write just hashes of broken pins."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -444,7 +444,7 @@ var verifyPinCmd = &cmds.Command{
 		quiet, _, _ := res.Request().Option("quiet").Bool()
 
 		if verbose && quiet {
-			res.SetError(fmt.Errorf("The --verbose and --quiet options can not be used at the same time"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("The --verbose and --quiet options can not be used at the same time"), cmdkit.ErrNormal)
 		}
 
 		opts := pinVerifyOpts{

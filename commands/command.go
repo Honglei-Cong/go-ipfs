@@ -16,7 +16,7 @@ import (
 
 	"github.com/ipfs/go-ipfs/path"
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var log = logging.Logger("command")
@@ -36,8 +36,8 @@ type MarshalerMap map[EncodingType]Marshaler
 // Command is a runnable command, with input arguments and options (flags).
 // It can also have Subcommands, to group units of work into sets.
 type Command struct {
-	Options   []cmdsutil.Option
-	Arguments []cmdsutil.Argument
+	Options   []cmdkit.Option
+	Arguments []cmdkit.Argument
 	PreRun    func(req Request) error
 
 	// Run is the function that processes the request to generate a response.
@@ -47,7 +47,7 @@ type Command struct {
 	Run        Function
 	PostRun    Function
 	Marshalers map[EncodingType]Marshaler
-	Helptext   cmdsutil.HelpText
+	Helptext   cmdkit.HelpText
 
 	// External denotes that a command is actually an external binary.
 	// fewer checks and validations will be performed on such commands.
@@ -75,25 +75,25 @@ func (c *Command) Call(req Request) Response {
 
 	cmds, err := c.Resolve(req.Path())
 	if err != nil {
-		res.SetError(err, cmdsutil.ErrClient)
+		res.SetError(err, cmdkit.ErrClient)
 		return res
 	}
 	cmd := cmds[len(cmds)-1]
 
 	if cmd.Run == nil {
-		res.SetError(ErrNotCallable, cmdsutil.ErrClient)
+		res.SetError(ErrNotCallable, cmdkit.ErrClient)
 		return res
 	}
 
 	err = cmd.CheckArguments(req)
 	if err != nil {
-		res.SetError(err, cmdsutil.ErrClient)
+		res.SetError(err, cmdkit.ErrClient)
 		return res
 	}
 
 	err = req.ConvertOptions()
 	if err != nil {
-		res.SetError(err, cmdsutil.ErrClient)
+		res.SetError(err, cmdkit.ErrClient)
 		return res
 	}
 
@@ -129,7 +129,7 @@ func (c *Command) Call(req Request) Response {
 		expectedType := reflect.TypeOf(cmd.Type)
 
 		if actualType != expectedType {
-			res.SetError(ErrIncorrectType, cmdsutil.ErrNormal)
+			res.SetError(ErrIncorrectType, cmdkit.ErrNormal)
 			return res
 		}
 	}
@@ -167,8 +167,8 @@ func (c *Command) Get(path []string) (*Command, error) {
 }
 
 // GetOptions returns the options in the given path of commands
-func (c *Command) GetOptions(path []string) (map[string]cmdsutil.Option, error) {
-	options := make([]cmdsutil.Option, 0, len(c.Options))
+func (c *Command) GetOptions(path []string) (map[string]cmdkit.Option, error) {
+	options := make([]cmdkit.Option, 0, len(c.Options))
 
 	cmds, err := c.Resolve(path)
 	if err != nil {
@@ -180,7 +180,7 @@ func (c *Command) GetOptions(path []string) (map[string]cmdsutil.Option, error) 
 		options = append(options, cmd.Options...)
 	}
 
-	optionsMap := make(map[string]cmdsutil.Option)
+	optionsMap := make(map[string]cmdkit.Option)
 	for _, opt := range options {
 		for _, name := range opt.Names() {
 			if _, found := optionsMap[name]; found {
@@ -211,7 +211,7 @@ func (c *Command) CheckArguments(req Request) error {
 		// skip optional argument definitions if there aren't
 		// sufficient remaining values
 		if len(args)-valueIndex <= numRequired && !argDef.Required ||
-			argDef.Type == cmdsutil.ArgFile {
+			argDef.Type == cmdkit.ArgFile {
 			continue
 		}
 
@@ -274,7 +274,7 @@ func (c *Command) ProcessHelp() {
 
 // checkArgValue returns an error if a given arg value is not valid for the
 // given Argument
-func checkArgValue(v string, found bool, def cmdsutil.Argument) error {
+func checkArgValue(v string, found bool, def cmdkit.Argument) error {
 	if def.Variadic && def.SupportsStdin {
 		return nil
 	}
@@ -287,14 +287,14 @@ func checkArgValue(v string, found bool, def cmdsutil.Argument) error {
 }
 
 func ClientError(msg string) error {
-	return &cmdsutil.Error{Code: cmdsutil.ErrClient, Message: msg}
+	return &cmdkit.Error{Code: cmdkit.ErrClient, Message: msg}
 }
 
 // global options, added to every command
-var globalOptions = []cmdsutil.Option{
-	cmdsutil.OptionEncodingType,
-	cmdsutil.OptionStreamChannels,
-	cmdsutil.OptionTimeout,
+var globalOptions = []cmdkit.Option{
+	cmdkit.OptionEncodingType,
+	cmdkit.OptionStreamChannels,
+	cmdkit.OptionTimeout,
 }
 
 // the above array of Options, wrapped in a Command

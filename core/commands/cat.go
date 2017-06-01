@@ -8,44 +8,44 @@ import (
 	core "github.com/ipfs/go-ipfs/core"
 	coreunix "github.com/ipfs/go-ipfs/core/coreunix"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
-	cmds "gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	cmds "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 )
 
 const progressBarMinSize = 1024 * 1024 * 8 // show progress bar for outputs > 8MiB
 
 var CatCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Show IPFS object data.",
 		ShortDescription: "Displays the data contained by an IPFS or IPNS object(s) at the given path.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, true, "The path to the IPFS object(s) to be outputted.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, true, "The path to the IPFS object(s) to be outputted.").EnableStdin(),
 	},
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		if !node.OnlineMode() {
 			if err := node.SetupOfflineRouting(); err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		}
 
 		readers, length, err := cat(req.Context(), node, req.Arguments())
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		/*
 			if err := corerepo.ConditionalGC(req.Context(), node, length); err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		*/
@@ -59,7 +59,7 @@ var CatCmd = &cmds.Command{
 		// is broken or we supplied an illegal argument etc.
 		err = re.Emit(reader)
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 		}
 	},
 	PostRun: map[cmds.EncodingType]func(cmds.Request, cmds.ResponseEmitter) cmds.ResponseEmitter{
@@ -69,7 +69,7 @@ var CatCmd = &cmds.Command{
 			go func() {
 				if res.Length() > 0 && res.Length() < progressBarMinSize {
 					if err := cmds.Copy(re, res); err != nil {
-						re.SetError(err, cmdsutil.ErrNormal)
+						re.SetError(err, cmdkit.ErrNormal)
 					}
 
 					return
@@ -85,12 +85,12 @@ var CatCmd = &cmds.Command{
 						if err == cmds.ErrRcvdError {
 							re.Emit(res.Error())
 						} else {
-							re.SetError(err, cmdsutil.ErrNormal)
+							re.SetError(err, cmdkit.ErrNormal)
 						}
 					}
 
 					switch val := v.(type) {
-					case *cmdsutil.Error:
+					case *cmdkit.Error:
 						re.Emit(val)
 					case io.Reader:
 						bar, reader := progressBarForReader(os.Stderr, val, int64(res.Length()))

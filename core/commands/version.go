@@ -10,7 +10,7 @@ import (
 	e "github.com/ipfs/go-ipfs/core/commands/e"
 	config "github.com/ipfs/go-ipfs/repo/config"
 	fsrepo "github.com/ipfs/go-ipfs/repo/fsrepo"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 type VersionOutput struct {
@@ -22,16 +22,16 @@ type VersionOutput struct {
 }
 
 var VersionCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Show ipfs version information.",
 		ShortDescription: "Returns the current version of ipfs and exits.",
 	},
 
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("number", "n", "Only show the version number.").Default(false),
-		cmdsutil.BoolOption("commit", "Show the commit hash.").Default(false),
-		cmdsutil.BoolOption("repo", "Show repo version.").Default(false),
-		cmdsutil.BoolOption("all", "Show all version information").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("number", "n", "Only show the version number.").Default(false),
+		cmdkit.BoolOption("commit", "Show the commit hash.").Default(false),
+		cmdkit.BoolOption("repo", "Show repo version.").Default(false),
+		cmdkit.BoolOption("all", "Show all version information").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		res.SetOutput(&VersionOutput{

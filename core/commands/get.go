@@ -16,15 +16,15 @@ import (
 	tar "github.com/ipfs/go-ipfs/thirdparty/tar"
 	uarchive "github.com/ipfs/go-ipfs/unixfs/archive"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
-	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 	"gx/ipfs/QmeWjRodbcZFKe5tMN7poEx3izym6osrLSnTLf9UjJZBbs/pb"
 )
 
 var ErrInvalidCompressionLevel = errors.New("Compression level must be between 1 and 9")
 
 var GetCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Download IPFS objects.",
 		ShortDescription: `
 Stores to disk the data contained an IPFS or IPNS object(s) at the given path.
@@ -39,14 +39,14 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, false, "The path to the IPFS object(s) to be outputted.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, false, "The path to the IPFS object(s) to be outputted.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("output", "o", "The path where the output should be stored."),
-		cmdsutil.BoolOption("archive", "a", "Output a TAR archive.").Default(false),
-		cmdsutil.BoolOption("compress", "C", "Compress the output with GZIP compression.").Default(false),
-		cmdsutil.IntOption("compression-level", "l", "The level of compression (1-9).").Default(-1),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("output", "o", "The path where the output should be stored."),
+		cmdkit.BoolOption("archive", "a", "Output a TAR archive.").Default(false),
+		cmdkit.BoolOption("compress", "C", "Compress the output with GZIP compression.").Default(false),
+		cmdkit.IntOption("compression-level", "l", "The level of compression (1-9).").Default(-1),
 	},
 	PreRun: func(req cmds.Request) error {
 		_, err := getCompressOptions(req)
@@ -54,25 +54,25 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 	},
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		if len(req.Arguments()) == 0 {
-			re.SetError(errors.New("not enough arugments provided"), cmdsutil.ErrClient)
+			re.SetError(errors.New("not enough arugments provided"), cmdkit.ErrClient)
 			return
 		}
 		cmplvl, err := getCompressOptions(req)
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		p := path.Path(req.Arguments()[0])
 		ctx := req.Context()
 		dn, err := core.Resolve(ctx, node.Namesys, node.Resolver, p)
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -80,7 +80,7 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 		case *dag.ProtoNode:
 			size, err := dn.Size()
 			if err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -88,14 +88,14 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 		case *dag.RawNode:
 			re.SetLength(uint64(len(dn.RawData())))
 		default:
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		archive, _, _ := req.Option("archive").Bool()
 		reader, err := uarchive.DagArchive(ctx, dn, p.String(), node.DAG, archive, cmplvl)
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -128,7 +128,7 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 
 				cmplvl, err := getCompressOptions(req)
 				if err != nil {
-					re.SetError(err, cmdsutil.ErrNormal)
+					re.SetError(err, cmdkit.ErrNormal)
 					return
 				}
 
@@ -143,7 +143,7 @@ may also specify the level of compression by specifying '-l=<1-9>'.
 				}
 
 				if err := gw.Write(outReader, outPath); err != nil {
-					re.SetError(err, cmdsutil.ErrNormal)
+					re.SetError(err, cmdkit.ErrNormal)
 				}
 			}()
 

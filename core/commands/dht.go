@@ -19,14 +19,14 @@ import (
 	b58 "gx/ipfs/QmT8rehPR3F6bmwL6zjUN8XpiDBFFpMP2myPdC6ApsWfJf/go-base58"
 	pstore "gx/ipfs/QmXZSd1qR5BxZkPyuwfT5jpqQFScZccoZvDneXsKzCNHWX/go-libp2p-peerstore"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var ErrNotDHT = errors.New("routing service is not a DHT")
 
 var DhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Issue commands directly through the DHT.",
 		ShortDescription: ``,
 	},
@@ -42,27 +42,27 @@ var DhtCmd = &cmds.Command{
 }
 
 var queryDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Find the closest Peer IDs to a given Peer ID by querying the DHT.",
 		ShortDescription: "Outputs a list of newline-delimited Peer IDs.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("peerID", true, true, "The peerID to run the query against."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("peerID", true, true, "The peerID to run the query against."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
+			res.SetError(ErrNotDHT, cmdkit.ErrNormal)
 			return
 		}
 
@@ -73,7 +73,7 @@ var queryDhtCmd = &cmds.Command{
 
 		closestPeers, err := dht.GetClosestPeers(ctx, k)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -130,28 +130,28 @@ var queryDhtCmd = &cmds.Command{
 }
 
 var findProvidersDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Find peers in the DHT that can provide a specific value, given a key.",
 		ShortDescription: "Outputs a list of newline-delimited provider Peer IDs.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("key", true, true, "The key to find providers for."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, true, "The key to find providers for."),
 	},
 	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
-		cmdsutil.IntOption("num-providers", "n", "The number of providers to find.").Default(20),
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
+		cmdkit.IntOption("num-providers", "n", "The number of providers to find.").Default(20),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
+			res.SetError(ErrNotDHT, cmdkit.ErrNormal)
 			return
 		}
 
@@ -173,7 +173,7 @@ var findProvidersDhtCmd = &cmds.Command{
 
 		c, err := cid.Decode(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -240,26 +240,26 @@ var findProvidersDhtCmd = &cmds.Command{
 }
 
 var provideRefDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Announce to the network that you are providing given values.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("key", true, true, "The key[s] to send provide records for.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, true, "The key[s] to send provide records for.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
-		cmdsutil.BoolOption("recursive", "r", "Recursively provide entire graph.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
+		cmdkit.BoolOption("recursive", "r", "Recursively provide entire graph.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		if n.Routing == nil {
-			res.SetError(errNotOnline, cmdsutil.ErrNormal)
+			res.SetError(errNotOnline, cmdkit.ErrNormal)
 			return
 		}
 
@@ -269,18 +269,18 @@ var provideRefDhtCmd = &cmds.Command{
 		for _, arg := range req.Arguments() {
 			c, err := cid.Decode(arg)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			has, err := n.Blockstore.Has(c)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
 			if !has {
-				res.SetError(fmt.Errorf("block %s not found locally, cannot provide", c), cmdsutil.ErrNormal)
+				res.SetError(fmt.Errorf("block %s not found locally, cannot provide", c), cmdkit.ErrNormal)
 				return
 			}
 
@@ -383,33 +383,33 @@ func provideKeysRec(ctx context.Context, r routing.IpfsRouting, dserv dag.DAGSer
 }
 
 var findPeerDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:          "Query the DHT for all of the multiaddresses associated with a Peer ID.",
 		ShortDescription: "Outputs a list of newline-delimited multiaddresses.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("peerID", true, true, "The ID of the peer to search for."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("peerID", true, true, "The ID of the peer to search for."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
+			res.SetError(ErrNotDHT, cmdkit.ErrNormal)
 			return
 		}
 
 		pid, err := peer.IDB58Decode(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -477,7 +477,7 @@ var findPeerDhtCmd = &cmds.Command{
 }
 
 var getValueDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Given a key, query the DHT for its best value.",
 		ShortDescription: `
 Outputs the best value for the given key.
@@ -490,22 +490,22 @@ Different key types can specify other 'best' rules.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("key", true, true, "The key to find a value for."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, true, "The key to find a value for."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
+			res.SetError(ErrNotDHT, cmdkit.ErrNormal)
 			return
 		}
 
@@ -517,7 +517,7 @@ Different key types can specify other 'best' rules.
 
 		dhtkey, err := escapeDhtKey(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -580,7 +580,7 @@ Different key types can specify other 'best' rules.
 }
 
 var putValueDhtCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Write a key/value pair to the DHT.",
 		ShortDescription: `
 Given a key of the form /foo/bar and a value of any form, this will write that
@@ -601,23 +601,23 @@ NOTE: A value may not exceed 2048 bytes.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("key", true, false, "The key to store the value at."),
-		cmdsutil.StringArg("value", true, false, "The value to store.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("key", true, false, "The key to store the value at."),
+		cmdkit.StringArg("value", true, false, "The value to store.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("verbose", "v", "Print extra information.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dht, ok := n.Routing.(*ipdht.IpfsDHT)
 		if !ok {
-			res.SetError(ErrNotDHT, cmdsutil.ErrNormal)
+			res.SetError(ErrNotDHT, cmdkit.ErrNormal)
 			return
 		}
 
@@ -629,7 +629,7 @@ NOTE: A value may not exceed 2048 bytes.
 
 		key, err := escapeDhtKey(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 

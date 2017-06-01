@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	cmdsutil "gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 type TestOutput struct {
@@ -28,7 +28,7 @@ func TestMarshalling(t *testing.T) {
 		t.Error("Should have failed (no encoding type specified in request)")
 	}
 
-	req.SetOption(cmdsutil.EncShort, JSON)
+	req.SetOption(cmdkit.EncShort, JSON)
 
 	reader, err := res.Marshal()
 	if err != nil {
@@ -41,7 +41,7 @@ func TestMarshalling(t *testing.T) {
 		t.Error("Incorrect JSON output")
 	}
 
-	res.SetError(fmt.Errorf("Oops!"), cmdsutil.ErrClient)
+	res.SetError(fmt.Errorf("Oops!"), cmdkit.ErrClient)
 	reader, err = res.Marshal()
 	if err != nil {
 		t.Error("Should have passed")
@@ -56,7 +56,7 @@ func TestMarshalling(t *testing.T) {
 }
 
 func TestErrTypeOrder(t *testing.T) {
-	if cmdsutil.ErrNormal != 0 || cmdsutil.ErrClient != 1 || cmdsutil.ErrImplementation != 2 || cmdsutil.ErrNotFound != 3 {
+	if cmdkit.ErrNormal != 0 || cmdkit.ErrClient != 1 || cmdkit.ErrImplementation != 2 || cmdkit.ErrNotFound != 3 {
 		t.Fatal("ErrType order is wrong")
 	}
 }

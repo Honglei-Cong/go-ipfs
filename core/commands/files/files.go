@@ -18,7 +18,7 @@ import (
 	path "github.com/ipfs/go-ipfs/path"
 	ft "github.com/ipfs/go-ipfs/unixfs"
 	uio "github.com/ipfs/go-ipfs/unixfs/io"
-	cmdsutil "gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
@@ -27,7 +27,7 @@ import (
 var log = logging.Logger("cmds/files")
 
 var FilesCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Interact with unixfs files.",
 		ShortDescription: `
 Files is an API for manipulating IPFS objects as if they were a unix
@@ -43,8 +43,8 @@ applies to running 'ipfs repo gc' concurrently with '--flush=false'
 operations.
 `,
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("f", "flush", "Flush target and ancestors after write.").Default(true),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("f", "flush", "Flush target and ancestors after write.").Default(true),
 	},
 	Subcommands: map[string]*cmds.Command{
 		"read":  FilesReadCmd,
@@ -62,52 +62,52 @@ operations.
 var formatError = errors.New("Format was set by multiple options. Only one format option is allowed")
 
 var FilesStatCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Display file status.",
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", true, false, "Path to node to stat."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", true, false, "Path to node to stat."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("format", "Print statistics in given format. Allowed tokens: "+
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("format", "Print statistics in given format. Allowed tokens: "+
 			"<hash> <size> <cumulsize> <type> <childs>. Conflicts with other format options.").Default(
 			`<hash>
 Size: <size>
 CumulativeSize: <cumulsize>
 ChildBlocks: <childs>
 Type: <type>`),
-		cmdsutil.BoolOption("hash", "Print only hash. Implies '--format=<hash>'. Conflicts with other format options.").Default(false),
-		cmdsutil.BoolOption("size", "Print only size. Implies '--format=<cumulsize>'. Conflicts with other format options.").Default(false),
+		cmdkit.BoolOption("hash", "Print only hash. Implies '--format=<hash>'. Conflicts with other format options.").Default(false),
+		cmdkit.BoolOption("size", "Print only size. Implies '--format=<cumulsize>'. Conflicts with other format options.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 
 		_, err := statGetFormatOptions(req)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrClient)
+			res.SetError(err, cmdkit.ErrClient)
 		}
 
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		path, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		fsn, err := mfs.Lookup(node.FilesRoot, path)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		o, err := statNode(node.DAG, fsn)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -206,17 +206,17 @@ func statNode(ds dag.DAGService, fsn mfs.FSNode) (*Object, error) {
 }
 
 var FilesCpCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Copy files into mfs.",
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("source", true, false, "Source object to copy."),
-		cmdsutil.StringArg("dest", true, false, "Destination to copy object to."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("source", true, false, "Source object to copy."),
+		cmdkit.StringArg("dest", true, false, "Destination to copy object to."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -224,14 +224,14 @@ var FilesCpCmd = &cmds.Command{
 
 		src, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		src = strings.TrimRight(src, "/")
 
 		dst, err := checkPath(req.Arguments()[1])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -241,20 +241,20 @@ var FilesCpCmd = &cmds.Command{
 
 		nd, err := getNodeFromPath(req.Context(), node, src)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		err = mfs.PutNode(node.FilesRoot, dst, nd)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		if flush {
 			err := mfs.FlushPath(node.FilesRoot, dst)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		}
@@ -300,7 +300,7 @@ type FilesLsOutput struct {
 }
 
 var FilesLsCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List directories in the local mutable namespace.",
 		ShortDescription: `
 List directories in the local mutable namespace.
@@ -320,11 +320,11 @@ Examples:
     bar
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", false, false, "Path to show listing for. Defaults to '/'."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", false, false, "Path to show listing for. Defaults to '/'."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("l", "Use long listing format."),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("l", "Use long listing format."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		var arg string
@@ -337,19 +337,19 @@ Examples:
 
 		path, err := checkPath(arg)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		fsn, err := mfs.Lookup(nd.FilesRoot, path)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -361,7 +361,7 @@ Examples:
 				var output []mfs.NodeListing
 				names, err := fsn.ListNames(req.Context())
 				if err != nil {
-					res.SetError(err, cmdsutil.ErrNormal)
+					res.SetError(err, cmdkit.ErrNormal)
 					return
 				}
 
@@ -374,7 +374,7 @@ Examples:
 			} else {
 				listing, err := fsn.List(req.Context())
 				if err != nil {
-					res.SetError(err, cmdsutil.ErrNormal)
+					res.SetError(err, cmdkit.ErrNormal)
 					return
 				}
 				res.SetOutput(&FilesLsOutput{listing})
@@ -386,7 +386,7 @@ Examples:
 			res.SetOutput(out)
 			return
 		default:
-			res.SetError(errors.New("unrecognized type"), cmdsutil.ErrNormal)
+			res.SetError(errors.New("unrecognized type"), cmdkit.ErrNormal)
 		}
 	},
 	Marshalers: cmds.MarshalerMap{
@@ -418,7 +418,7 @@ Examples:
 }
 
 var FilesReadCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Read a file in a given mfs.",
 		ShortDescription: `
 Read a specified number of bytes from a file at a given offset. By default,
@@ -431,41 +431,41 @@ Examples:
         `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", true, false, "Path to file to be read."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", true, false, "Path to file to be read."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.IntOption("offset", "o", "Byte offset to begin reading from."),
-		cmdsutil.IntOption("count", "n", "Maximum number of bytes to read."),
+	Options: []cmdkit.Option{
+		cmdkit.IntOption("offset", "o", "Byte offset to begin reading from."),
+		cmdkit.IntOption("count", "n", "Maximum number of bytes to read."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		path, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		fsn, err := mfs.Lookup(n.FilesRoot, path)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		fi, ok := fsn.(*mfs.File)
 		if !ok {
-			res.SetError(fmt.Errorf("%s was not a file.", path), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("%s was not a file.", path), cmdkit.ErrNormal)
 			return
 		}
 
 		rfd, err := fi.Open(mfs.OpenReadOnly, false)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -473,40 +473,40 @@ Examples:
 
 		offset, _, err := req.Option("offset").Int()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if offset < 0 {
-			res.SetError(fmt.Errorf("Cannot specify negative offset."), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("Cannot specify negative offset."), cmdkit.ErrNormal)
 			return
 		}
 
 		filen, err := rfd.Size()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		if int64(offset) > filen {
-			res.SetError(fmt.Errorf("Offset was past end of file (%d > %d).", offset, filen), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("Offset was past end of file (%d > %d).", offset, filen), cmdkit.ErrNormal)
 			return
 		}
 
 		_, err = rfd.Seek(int64(offset), io.SeekStart)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		var r io.Reader = &contextReaderWrapper{R: rfd, ctx: req.Context()}
 		count, found, err := req.Option("count").Int()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if found {
 			if count < 0 {
-				res.SetError(fmt.Errorf("Cannot specify negative 'count'."), cmdsutil.ErrNormal)
+				res.SetError(fmt.Errorf("Cannot specify negative 'count'."), cmdkit.ErrNormal)
 				return
 			}
 			r = io.LimitReader(r, int64(count))
@@ -530,7 +530,7 @@ func (crw *contextReaderWrapper) Read(b []byte) (int, error) {
 }
 
 var FilesMvCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Move files.",
 		ShortDescription: `
 Move files around. Just like traditional unix mv.
@@ -542,31 +542,31 @@ Example:
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("source", true, false, "Source file to move."),
-		cmdsutil.StringArg("dest", true, false, "Destination path for file to be moved to."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("source", true, false, "Source file to move."),
+		cmdkit.StringArg("dest", true, false, "Destination path for file to be moved to."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		src, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		dst, err := checkPath(req.Arguments()[1])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		err = mfs.Mv(n.FilesRoot, src, dst)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -575,7 +575,7 @@ Example:
 }
 
 var FilesWriteCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Write to a mutable file in a given filesystem.",
 		ShortDescription: `
 Write data to a file in a given filesystem. This command allows you to specify
@@ -600,20 +600,20 @@ the tree has been flushed. This can be accomplished by running 'ipfs files
 stat' on the file or any of its ancestors.
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", true, false, "Path to write to."),
-		cmdsutil.FileArg("data", true, false, "Data to write.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", true, false, "Path to write to."),
+		cmdkit.FileArg("data", true, false, "Data to write.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.IntOption("offset", "o", "Byte offset to begin writing at."),
-		cmdsutil.BoolOption("create", "e", "Create the file if it does not exist."),
-		cmdsutil.BoolOption("truncate", "t", "Truncate the file to size zero before writing."),
-		cmdsutil.IntOption("count", "n", "Maximum number of bytes to read."),
+	Options: []cmdkit.Option{
+		cmdkit.IntOption("offset", "o", "Byte offset to begin writing at."),
+		cmdkit.BoolOption("create", "e", "Create the file if it does not exist."),
+		cmdkit.BoolOption("truncate", "t", "Truncate the file to size zero before writing."),
+		cmdkit.IntOption("count", "n", "Maximum number of bytes to read."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		path, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -623,66 +623,66 @@ stat' on the file or any of its ancestors.
 
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		offset, _, err := req.Option("offset").Int()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if offset < 0 {
-			res.SetError(fmt.Errorf("cannot have negative write offset"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("cannot have negative write offset"), cmdkit.ErrNormal)
 			return
 		}
 
 		fi, err := getFileHandle(nd.FilesRoot, path, create)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		wfd, err := fi.Open(mfs.OpenWriteOnly, flush)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		defer func() {
 			err := wfd.Close()
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 			}
 		}()
 
 		if trunc {
 			if err := wfd.Truncate(0); err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 		}
 
 		count, countfound, err := req.Option("count").Int()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if countfound && count < 0 {
-			res.SetError(fmt.Errorf("cannot have negative byte count"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("cannot have negative byte count"), cmdkit.ErrNormal)
 			return
 		}
 
 		_, err = wfd.Seek(int64(offset), io.SeekStart)
 		if err != nil {
 			log.Error("seekfail: ", err)
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		input, err := req.Files().NextFile()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -693,7 +693,7 @@ stat' on the file or any of its ancestors.
 
 		_, err = io.Copy(wfd, r)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -702,7 +702,7 @@ stat' on the file or any of its ancestors.
 }
 
 var FilesMkdirCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Make directories.",
 		ShortDescription: `
 Create the directory if it does not already exist.
@@ -716,23 +716,23 @@ Examples:
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", true, false, "Path to dir to make."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", true, false, "Path to dir to make."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("parents", "p", "No error if existing, make parent directories as needed."),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("parents", "p", "No error if existing, make parent directories as needed."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		dashp, _, _ := req.Option("parents").Bool()
 		dirtomake, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -740,7 +740,7 @@ Examples:
 
 		err = mfs.Mkdir(n.FilesRoot, dirtomake, dashp, flush)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		res.SetOutput(nil)
@@ -748,20 +748,20 @@ Examples:
 }
 
 var FilesFlushCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Flush a given path's data to disk.",
 		ShortDescription: `
 Flush a given path to disk. This is only useful when other commands
 are run with the '--flush=false'.
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", false, false, "Path to flush. Default: '/'."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", false, false, "Path to flush. Default: '/'."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -772,7 +772,7 @@ are run with the '--flush=false'.
 
 		err = mfs.FlushPath(nd.FilesRoot, path)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -781,7 +781,7 @@ are run with the '--flush=false'.
 }
 
 var FilesRmCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Remove a file.",
 		ShortDescription: `
 Remove files or directories.
@@ -795,29 +795,29 @@ Remove files or directories.
 `,
 	},
 
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("path", true, true, "File to remove."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("path", true, true, "File to remove."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("recursive", "r", "Recursively remove directories."),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("recursive", "r", "Recursively remove directories."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		defer res.SetOutput(nil)
 
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		path, err := checkPath(req.Arguments()[0])
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		if path == "/" {
-			res.SetError(fmt.Errorf("cannot delete root"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("cannot delete root"), cmdkit.ErrNormal)
 			return
 		}
 
@@ -829,13 +829,13 @@ Remove files or directories.
 		dir, name := gopath.Split(path)
 		parent, err := mfs.Lookup(nd.FilesRoot, dir)
 		if err != nil {
-			res.SetError(fmt.Errorf("parent lookup: %s", err), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("parent lookup: %s", err), cmdkit.ErrNormal)
 			return
 		}
 
 		pdir, ok := parent.(*mfs.Directory)
 		if !ok {
-			res.SetError(fmt.Errorf("No such file or directory: %s", path), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("No such file or directory: %s", path), cmdkit.ErrNormal)
 			return
 		}
 
@@ -846,7 +846,7 @@ Remove files or directories.
 			if success {
 				err := pdir.Flush()
 				if err != nil {
-					res.SetError(err, cmdsutil.ErrNormal)
+					res.SetError(err, cmdkit.ErrNormal)
 					return
 				}
 			}
@@ -856,7 +856,7 @@ Remove files or directories.
 		if dashr {
 			err := pdir.Unlink(name)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -866,18 +866,18 @@ Remove files or directories.
 
 		childi, err := pdir.Child(name)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		switch childi.(type) {
 		case *mfs.Directory:
-			res.SetError(fmt.Errorf("%s is a directory, use -r to remove directories", path), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("%s is a directory, use -r to remove directories", path), cmdkit.ErrNormal)
 			return
 		default:
 			err := pdir.Unlink(name)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 

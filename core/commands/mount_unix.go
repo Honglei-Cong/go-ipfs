@@ -13,11 +13,11 @@ import (
 	nodeMount "github.com/ipfs/go-ipfs/fuse/node"
 	config "github.com/ipfs/go-ipfs/repo/config"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var MountCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Mounts IPFS to the filesystem (read-only).",
 		ShortDescription: `
 Mount IPFS at a read-only mountpoint on the OS (default: /ipfs and /ipns).
@@ -73,32 +73,32 @@ baz
 baz
 `,
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("ipfs-path", "f", "The path where IPFS should be mounted."),
-		cmdsutil.StringOption("ipns-path", "n", "The path where IPNS should be mounted."),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("ipfs-path", "f", "The path where IPFS should be mounted."),
+		cmdkit.StringOption("ipns-path", "n", "The path where IPNS should be mounted."),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		cfg, err := req.InvocContext().GetConfig()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		node, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		// error if we aren't running node in online mode
 		if !node.OnlineMode() {
-			res.SetError(errNotOnline, cmdsutil.ErrClient)
+			res.SetError(errNotOnline, cmdkit.ErrClient)
 			return
 		}
 
 		fsdir, found, err := req.Option("f").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if !found {
@@ -108,7 +108,7 @@ baz
 		// get default mount points
 		nsdir, found, err := req.Option("n").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if !found {
@@ -117,7 +117,7 @@ baz
 
 		err = nodeMount.Mount(node, fsdir, nsdir)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 

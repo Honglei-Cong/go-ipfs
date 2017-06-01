@@ -11,13 +11,13 @@ import (
 	e "github.com/ipfs/go-ipfs/core/commands/e"
 	"github.com/ipfs/go-ipfs/filestore"
 
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	cmds "gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	cmds "gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 )
 
 var FileStoreCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Interact with filestore objects.",
 	},
 	Subcommands: map[string]*cmds.Command{
@@ -35,7 +35,7 @@ type lsEncoder struct {
 }
 
 var lsFileStore = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List objects in filestore.",
 		LongDescription: `
 List objects in the filestore.
@@ -48,16 +48,16 @@ The output is:
 <hash> <size> <path> <offset>
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("obj", false, true, "Cid of objects to list."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("obj", false, true, "Cid of objects to list."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("file-order", "sort the results based on the path of the backing file"),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("file-order", "sort the results based on the path of the backing file"),
 	},
 	Run: func(req cmds.Request, re cmds.ResponseEmitter) {
 		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			re.SetError(err, cmdsutil.ErrNormal)
+			re.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		args := req.Arguments()
@@ -74,7 +74,7 @@ The output is:
 			fileOrder, _, _ := req.Option("file-order").Bool()
 			next, err := filestore.ListAll(fs, fileOrder)
 			if err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 
@@ -125,11 +125,11 @@ The output is:
 					re.SetError(e.Message, e.Code)
 
 				} else {
-					re.SetError(err, cmdsutil.ErrNormal)
+					re.SetError(err, cmdkit.ErrNormal)
 				}
 
 				if errors {
-					re.SetError("errors while displaying some entries", cmdsutil.ErrNormal)
+					re.SetError("errors while displaying some entries", cmdkit.ErrNormal)
 				}
 			}()
 
@@ -140,7 +140,7 @@ The output is:
 }
 
 var verifyFileStore = &oldCmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Verify objects in filestore.",
 		LongDescription: `
 Verify objects in the filestore.
@@ -163,16 +163,16 @@ ERROR:    internal error, most likely due to a corrupt database
 For ERROR entries the error will also be printed to stderr.
 `,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("obj", false, true, "Cid of objects to verify."),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("obj", false, true, "Cid of objects to verify."),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.BoolOption("file-order", "verify the objects based on the order of the backing file"),
+	Options: []cmdkit.Option{
+		cmdkit.BoolOption("file-order", "verify the objects based on the order of the backing file"),
 	},
 	Run: func(req oldCmds.Request, res oldCmds.Response) {
 		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		args := req.Arguments()
@@ -185,7 +185,7 @@ For ERROR entries the error will also be printed to stderr.
 			fileOrder, _, _ := req.Option("file-order").Bool()
 			next, err := filestore.VerifyAll(fs, fileOrder)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			out := listResToChan(req.Context(), next)
@@ -215,18 +215,18 @@ For ERROR entries the error will also be printed to stderr.
 }
 
 var dupsFileStore = &oldCmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List blocks that are both in the filestore and standard block storage.",
 	},
 	Run: func(req oldCmds.Request, res oldCmds.Response) {
 		_, fs, err := getFilestore(req.InvocContext())
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		ch, err := fs.FileManager().AllKeysChan(req.Context())
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 

@@ -12,8 +12,8 @@ import (
 	unixfs "github.com/ipfs/go-ipfs/core/commands/unixfs"
 
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
-	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
 )
 
 var log = logging.Logger("core/commands")
@@ -23,7 +23,7 @@ const (
 )
 
 var Root = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline:  "Global p2p merkle-dag filesystem.",
 		Synopsis: "ipfs [--config=<config> | -c] [--debug=<debug> | -D] [--help=<help>] [-h=<h>] [--local=<local> | -L] [--api=<api>] <command> ...",
 		Subcommands: `
@@ -83,13 +83,13 @@ The CLI will exit with one of the following values:
 1     Failed executions.
 `,
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("config", "c", "Path to the configuration file to use."),
-		cmdsutil.BoolOption("debug", "D", "Operate in debug mode.").Default(false),
-		cmdsutil.BoolOption("help", "Show the full command help text.").Default(false),
-		cmdsutil.BoolOption("h", "Show a short version of the command help text.").Default(false),
-		cmdsutil.BoolOption("local", "L", "Run the command locally, instead of using the daemon.").Default(false),
-		cmdsutil.StringOption(ApiOption, "Use a specific API instance (defaults to /ip4/127.0.0.1/tcp/5001)"),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("config", "c", "Path to the configuration file to use."),
+		cmdkit.BoolOption("debug", "D", "Operate in debug mode.").Default(false),
+		cmdkit.BoolOption("help", "Show the full command help text.").Default(false),
+		cmdkit.BoolOption("h", "Show a short version of the command help text.").Default(false),
+		cmdkit.BoolOption("local", "L", "Run the command locally, instead of using the daemon.").Default(false),
+		cmdkit.StringOption(ApiOption, "Use a specific API instance (defaults to /ip4/127.0.0.1/tcp/5001)"),
 	},
 }
 

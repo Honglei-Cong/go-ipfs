@@ -26,12 +26,12 @@ import (
 	logging "gx/ipfs/QmSpJByNKFX1sCsHBEp3R73FL4NF6FnQTEGyNAXHm2GS52/go-log"
 	loggables "gx/ipfs/QmVesPmqbPp7xRGyY96tnBwzDtVV1nqv4SCVxo5zCqKyH8/go-libp2p-loggables"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	osh "gx/ipfs/QmXuBJ7DR6k3rmUEKtvVMhwjmXDuJgXXPUt4LQXKBMsU93/go-os-helper"
-	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds"
-	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds/cli"
-	"gx/ipfs/QmZro8GXyJpJWtjrrSEr78dBdkZQ8ZnNjoCNB9FLEQWyRt/go-ipfs-cmds/http"
 	ma "gx/ipfs/QmcyqRMCAXVtYPS4DiBrA7sezL9rRGfW8Ctx7cywL4TXJj/go-multiaddr"
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds"
+	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds/cli"
+	"gx/ipfs/QmeJXSetiGpUzubM2GQiWRQehrqKN4oAfNYoWxj8rH6xq3/go-ipfs-cmds/http"
 	manet "gx/ipfs/Qmf1Gq7N45Rpuw7ev47uWgH6dLPtdnvcMRNPkVBwqjLJg2/go-multiaddr-net"
 )
 
@@ -73,8 +73,6 @@ func mainRet() int {
 	rand.Seed(time.Now().UnixNano())
 	ctx := logging.ContextWithLoggable(context.Background(), loggables.Uuid("session"))
 	var err error
-	var invoc cmdInvocation
-	defer invoc.close()
 
 	// we'll call this local helper to output errors.
 	// this is so we control how to print errors in one place.
@@ -88,6 +86,9 @@ func mainRet() int {
 		return 1
 	}
 	defer stopFunc() // to be executed as late as possible
+
+	var invoc cmdInvocation
+	defer invoc.close()
 
 	// this is a local helper to print out help text.
 	// there's some considerations that this makes easier.
@@ -198,7 +199,7 @@ func (i *cmdInvocation) Run(ctx context.Context) error {
 }
 
 func (i *cmdInvocation) constructNodeFunc(ctx context.Context) func() (*core.IpfsNode, error) {
-	return func() (*core.IpfsNode, error) {
+	return func() (n *core.IpfsNode, err error) {
 		if i.req == nil {
 			return nil, errors.New("constructing node without a request")
 		}
@@ -215,7 +216,7 @@ func (i *cmdInvocation) constructNodeFunc(ctx context.Context) func() (*core.Ipf
 
 		// ok everything is good. set it on the invocation (for ownership)
 		// and return it.
-		n, err := core.NewNode(ctx, &core.BuildCfg{
+		n, err = core.NewNode(ctx, &core.BuildCfg{
 			Online: cmdctx.Online,
 			Repo:   r,
 		})
@@ -367,7 +368,7 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 		go func() {
 			err = cmds.Copy(re, res)
 			if err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 			}
 		}()
 	} else {
@@ -384,21 +385,16 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 			err := root.Call(req, re)
 			log.Debug("root.Call returned ", err)
 			if err != nil {
-				re.SetError(err, cmdsutil.ErrNormal)
+				re.SetError(err, cmdkit.ErrNormal)
 				log.Info("callCommands returns ", err)
 			}
 		}()
 	}
 
-	select {
-	case <- ctx.Done():
-		err = ctx.Err()
-	case returnCode := <-exitCh:
-		if returnCode != 0 {
-			err = exitErr(returnCode)
-		}
+	if returnCode := <-exitCh; returnCode != 0 {
+		err = exitErr(returnCode)
 	}
-	
+
 	return err
 }
 
@@ -489,20 +485,10 @@ func commandShouldRunOnDaemon(details cmdDetails, req cmds.Request, root *cmds.C
 }
 
 func isClientError(err error) bool {
-	// Somewhat suprisingly, the pointer cast fails to recognize commands.Error
-	// passed as values, so we check both.
-
-	// cast to cmds.Error
-	switch e := err.(type) {
-	case *cmdsutil.Error:
-		return e.Code == cmdsutil.ErrClient
-	// TODO gpskjsa
-	// if there is trouble, this might be the reason.
-	/*
-	case cmdsutil.Error:
-		return e.Code == cmdsutil.ErrClient
-	*/
+	if e, ok := err.(*cmdkit.Error); ok {
+		return e.Code == cmdkit.ErrClient
 	}
+
 	return false
 }
 

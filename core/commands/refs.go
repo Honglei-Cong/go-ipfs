@@ -13,8 +13,8 @@ import (
 	dag "github.com/ipfs/go-ipfs/merkledag"
 	path "github.com/ipfs/go-ipfs/path"
 
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	node "gx/ipfs/Qmb3Hm9QDFmfYuET4pu7Kyg8JV78jFa1nvZx5vnCZsK4ck/go-ipld-format"
 )
 
@@ -43,7 +43,7 @@ func KeyListTextMarshaler(res cmds.Response) (io.Reader, error) {
 }
 
 var RefsCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List links (references) from an object.",
 		ShortDescription: `
 Lists the hashes of all the links an IPFS or IPNS object(s) contains,
@@ -57,50 +57,50 @@ NOTE: List all references recursively by using the flag '-r'.
 	Subcommands: map[string]*cmds.Command{
 		"local": RefsLocalCmd,
 	},
-	Arguments: []cmdsutil.Argument{
-		cmdsutil.StringArg("ipfs-path", true, true, "Path to the object(s) to list refs from.").EnableStdin(),
+	Arguments: []cmdkit.Argument{
+		cmdkit.StringArg("ipfs-path", true, true, "Path to the object(s) to list refs from.").EnableStdin(),
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("format", "Emit edges with given format. Available tokens: <src> <dst> <linkname>.").Default("<dst>"),
-		cmdsutil.BoolOption("edges", "e", "Emit edge format: `<from> -> <to>`.").Default(false),
-		cmdsutil.BoolOption("unique", "u", "Omit duplicate refs from output.").Default(false),
-		cmdsutil.BoolOption("recursive", "r", "Recursively list links of child nodes.").Default(false),
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("format", "Emit edges with given format. Available tokens: <src> <dst> <linkname>.").Default("<dst>"),
+		cmdkit.BoolOption("edges", "e", "Emit edge format: `<from> -> <to>`.").Default(false),
+		cmdkit.BoolOption("unique", "u", "Omit duplicate refs from output.").Default(false),
+		cmdkit.BoolOption("recursive", "r", "Recursively list links of child nodes.").Default(false),
 	},
 	Run: func(req cmds.Request, res cmds.Response) {
 		ctx := req.Context()
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		unique, _, err := req.Option("unique").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		recursive, _, err := req.Option("recursive").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		format, _, err := req.Option("format").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		edges, _, err := req.Option("edges").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if edges {
 			if format != "<dst>" {
 				res.SetError(errors.New("using format arguement with edges is not allowed"),
-					cmdsutil.ErrClient)
+					cmdkit.ErrClient)
 				return
 			}
 
@@ -109,7 +109,7 @@ NOTE: List all references recursively by using the flag '-r'.
 
 		objs, err := objectsForPaths(ctx, n, req.Arguments())
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
@@ -141,7 +141,7 @@ NOTE: List all references recursively by using the flag '-r'.
 }
 
 var RefsLocalCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "List all local references.",
 		ShortDescription: `
 Displays the hashes of all local objects.
@@ -152,14 +152,14 @@ Displays the hashes of all local objects.
 		ctx := req.Context()
 		n, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		// todo: make async
 		allKeys, err := n.Blockstore.AllKeysChan(ctx)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 

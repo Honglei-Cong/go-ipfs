@@ -11,15 +11,14 @@ import (
 
 	humanize "gx/ipfs/QmPSBJL4momYnE7DcUyk2DVhD6rH488ZmHBGLbxNdhU44K/go-humanize"
 	u "gx/ipfs/QmWbjfz3u6HkAdPh34dgPchGbQjob6LXLhAeCGii2TX69n/go-ipfs-util"
-	"gx/ipfs/QmWdiBLZ22juGtuNceNbvvHV11zKzCaoQFMP76x2w1XDFZ/go-ipfs-cmdkit"
 	protocol "gx/ipfs/QmZNkThpqfVXs9GNbexPrfBbXSLNYeKrE7jwFM2oqHbyqN/go-libp2p-protocol"
 	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
 	metrics "gx/ipfs/QmdibiN2wzuuXXz4JvqQ1ZGW3eUkoAy1AWznHFau6iePCc/go-libp2p-metrics"
-
+	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var StatsCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Query IPFS statistics.",
 		ShortDescription: `'ipfs stats' is a set of commands to help look at statistics
 for your IPFS node.
@@ -36,7 +35,7 @@ for your IPFS node.`,
 }
 
 var statBwCmd = &cmds.Command{
-	Helptext: cmdsutil.HelpText{
+	Helptext: cmdkit.HelpText{
 		Tagline: "Print ipfs bandwidth information.",
 		ShortDescription: `'ipfs stats bw' prints bandwidth information for the ipfs daemon.
 It displays: TotalIn, TotalOut, RateIn, RateOut.
@@ -72,11 +71,11 @@ Example:
     RateOut: 0B/s
 `,
 	},
-	Options: []cmdsutil.Option{
-		cmdsutil.StringOption("peer", "p", "Specify a peer to print bandwidth for."),
-		cmdsutil.StringOption("proto", "t", "Specify a protocol to print bandwidth for."),
-		cmdsutil.BoolOption("poll", "Print bandwidth at an interval.").Default(false),
-		cmdsutil.StringOption("interval", "i", `Time interval to wait between updating output, if 'poll' is true.
+	Options: []cmdkit.Option{
+		cmdkit.StringOption("peer", "p", "Specify a peer to print bandwidth for."),
+		cmdkit.StringOption("proto", "t", "Specify a protocol to print bandwidth for."),
+		cmdkit.BoolOption("poll", "Print bandwidth at an interval.").Default(false),
+		cmdkit.StringOption("interval", "i", `Time interval to wait between updating output, if 'poll' is true.
 
     This accepts durations such as "300s", "1.5h" or "2h45m". Valid time units are:
     "ns", "us" (or "µs"), "ms", "s", "m", "h".`).Default("1s"),
@@ -85,34 +84,34 @@ Example:
 	Run: func(req cmds.Request, res cmds.Response) {
 		nd, err := req.InvocContext().GetNode()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		// Must be online!
 		if !nd.OnlineMode() {
-			res.SetError(errNotOnline, cmdsutil.ErrClient)
+			res.SetError(errNotOnline, cmdkit.ErrClient)
 			return
 		}
 
 		if nd.Reporter == nil {
-			res.SetError(fmt.Errorf("bandwidth reporter disabled in config"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("bandwidth reporter disabled in config"), cmdkit.ErrNormal)
 			return
 		}
 
 		pstr, pfound, err := req.Option("peer").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		tstr, tfound, err := req.Option("proto").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if pfound && tfound {
-			res.SetError(errors.New("please only specify peer OR protocol"), cmdsutil.ErrClient)
+			res.SetError(errors.New("please only specify peer OR protocol"), cmdkit.ErrClient)
 			return
 		}
 
@@ -120,7 +119,7 @@ Example:
 		if pfound {
 			checkpid, err := peer.IDB58Decode(pstr)
 			if err != nil {
-				res.SetError(err, cmdsutil.ErrNormal)
+				res.SetError(err, cmdkit.ErrNormal)
 				return
 			}
 			pid = checkpid
@@ -128,18 +127,18 @@ Example:
 
 		timeS, _, err := req.Option("interval").String()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		interval, err := time.ParseDuration(timeS)
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
 		doPoll, _, err := req.Option("poll").Bool()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 
