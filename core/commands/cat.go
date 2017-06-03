@@ -8,8 +8,8 @@ import (
 	core "github.com/ipfs/go-ipfs/core"
 	coreunix "github.com/ipfs/go-ipfs/core/coreunix"
 
-	cmds "gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	cmds "gx/ipfs/QmPeCXhT37bYYZYPttzFeo9RegWJJkkMyufhZf1N4y7fiX/go-ipfs-cmds"
+	"gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit"
 )
 
 const progressBarMinSize = 1024 * 1024 * 8 // show progress bar for outputs > 8MiB

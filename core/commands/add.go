@@ -17,11 +17,11 @@ import (
 	mfs "github.com/ipfs/go-ipfs/mfs"
 	ft "github.com/ipfs/go-ipfs/unixfs"
 
+	"gx/ipfs/QmPeCXhT37bYYZYPttzFeo9RegWJJkkMyufhZf1N4y7fiX/go-ipfs-cmds"
+	"gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit"
+	"gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit/files"
 	mh "gx/ipfs/QmVGtdTZdTFaLsaj2RwdVG8jcjNNcp1DE914DKZ2kHmXHw/go-multihash"
 	"gx/ipfs/QmeWjRodbcZFKe5tMN7poEx3izym6osrLSnTLf9UjJZBbs/pb"
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit/files"
-	"gx/ipfs/QmWgHMDUnHypofwydF9iJ7V8Gj2C6n6SRstm2GVM1UbZSt/go-ipfs-cmds"
 )
 
 // ErrDepthLimitExceeded indicates that the max depth has been exceded.
@@ -93,6 +93,8 @@ You can now refer to the added file in a gateway, like so:
 		cmdkit.BoolOption(rawLeavesOptionName, "Use raw blocks for leaf nodes. (experimental)"),
 		cmdkit.BoolOption(noCopyOptionName, "Add the file using filestore. (experimental)"),
 		cmdkit.BoolOption(fstoreCacheOptionName, "Check the filestore for pre-existing blocks. (experimental)"),
+		cmdkit.IntOption(cidVersionOptionName, "Cid version. Non-zero value will change default of 'raw-leaves' to true. (experimental)").Default(0),
+		cmdkit.StringOption(hashOptionName, "Hash function to use. Will set Cid version to 1 if used. (experimental)").Default("sha2-256"),
 	},
 	PreRun: func(req cmds.Request) error {
 		quiet, _, _ := req.Option(quietOptionName).Bool()
@@ -377,7 +379,6 @@ You can now refer to the added file in a gateway, like so:
 							}
 
 						} else {
-
 							if !progress {
 								continue
 							}

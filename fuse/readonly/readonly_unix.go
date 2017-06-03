@@ -4,8 +4,8 @@
 package readonly
 
 import (
-	"context"
 	"fmt"
+	"gx/ipfs/QmTEmsyNnckEq8rEfALfdhLHjrEHGoSGFDrAYReuetn7MC/go-net/context"
 	"io"
 	"os"
 	"syscall"

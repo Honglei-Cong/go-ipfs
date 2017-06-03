@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	"gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit"
 
 	cmds "github.com/ipfs/go-ipfs/commands"
 )
@@ -27,5 +27,7 @@ var daemonShutdownCmd = &cmds.Command{
 		if err := nd.Process().Close(); err != nil {
 			log.Error("error while shutting down ipfs daemon:", err)
 		}
+
+		res.SetOutput(nil)
 	},
 }

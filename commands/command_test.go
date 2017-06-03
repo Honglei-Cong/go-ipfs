@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	cmdkit "gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
+	cmdkit "gx/ipfs/QmT7xnHPBQcMbgpcDJ81opQZzU4LfLCFv5U1B6YERMRsDj/go-ipfs-cmdkit"
 )
 
 func noop(req Request, res Response) {
