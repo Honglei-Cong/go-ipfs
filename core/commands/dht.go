@@ -21,7 +21,6 @@ import (
 	pstore "gx/ipfs/QmXZSd1qR5BxZkPyuwfT5jpqQFScZccoZvDneXsKzCNHWX/go-libp2p-peerstore"
 	cid "gx/ipfs/QmYhQaCYEcaPPjxJX7YcPcVKkQfRy6sJ7B3XmGFk82XYdQ/go-cid"
 	peer "gx/ipfs/QmdS9KpbDyPrieswibZhkod1oXqRwZJrUPzxCofAMWpFGq/go-libp2p-peer"
-	"gx/ipfs/QmeGapzEYCQkoEYN5x5MCPdj1zMGMHRjcPbA26sveo2XV4/go-ipfs-cmdkit"
 )
 
 var ErrNotDHT = errors.New("routing service is not a DHT")
@@ -139,7 +138,7 @@ var findProvidersDhtCmd = &cmds.Command{
 	Arguments: []cmdkit.Argument{
 		cmdkit.StringArg("key", true, true, "The key to find providers for."),
 	},
-	Options: []cmdsutil.Option{
+	Options: []cmdkit.Option{
 		cmdkit.BoolOption("verbose", "v", "Print extra information.").Default(false),
 		cmdkit.IntOption("num-providers", "n", "The number of providers to find.").Default(20),
 	},
@@ -158,11 +157,11 @@ var findProvidersDhtCmd = &cmds.Command{
 
 		numProviders, _, err := res.Request().Option("num-providers").Int()
 		if err != nil {
-			res.SetError(err, cmdsutil.ErrNormal)
+			res.SetError(err, cmdkit.ErrNormal)
 			return
 		}
 		if numProviders < 1 {
-			res.SetError(fmt.Errorf("Number of providers must be greater than 0"), cmdsutil.ErrNormal)
+			res.SetError(fmt.Errorf("Number of providers must be greater than 0"), cmdkit.ErrNormal)
 			return
 		}
 
