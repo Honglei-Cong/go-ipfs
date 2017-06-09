@@ -7,8 +7,8 @@ import (
 )
 
 func TestIsCientErr(t *testing.T) {
-	t.Log("Catch both pointers and values")
-	if !isClientError(cmdkit.Error{Code: cmdkit.ErrClient}) {
+	t.Log("Only catch pointers")
+	if isClientError(cmdkit.Error{Code: cmdkit.ErrClient}) {
 		t.Errorf("misidentified value")
 	}
 	if !isClientError(&cmdkit.Error{Code: cmdkit.ErrClient}) {
