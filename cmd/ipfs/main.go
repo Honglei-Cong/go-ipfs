@@ -338,18 +338,14 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 		return fmt.Errorf("could not find matching encoder for enctype %#v", encType)
 	}
 
-	log.Debugf("initial cli.RE uses global encoder for %s(%v)", encTypeStr, cmd.Encoders[cmds.EncodingType(encTypeStr)])
-
 	if cmd.PreRun != nil {
 		err = cmd.PreRun(req)
 		if err != nil {
-			log.Debug("callCommands returns ", err)
 			return err
 		}
 	}
 
 	if cmd.PostRun != nil && cmd.PostRun[cmds.CLI] != nil {
-		log.Debug("preparing PostRun")
 		re = cmd.PostRun[cmds.CLI](req, re)
 	}
 
@@ -376,17 +372,14 @@ func callCommand(ctx context.Context, req cmds.Request, root *cmds.Command, cmd 
 
 		err := req.SetRootContext(ctx)
 		if err != nil {
-			log.Debug("callCommands returns ", err)
 			return err
 		}
 
 		// Okay!!!!! NOW we can call the command.
 		go func() {
 			err := root.Call(req, re)
-			log.Debug("root.Call returned ", err)
 			if err != nil {
 				re.SetError(err, cmdkit.ErrNormal)
-				log.Info("callCommands returns ", err)
 			}
 		}()
 	}
@@ -414,8 +407,6 @@ func commandDetails(path []string, root *cmds.Command) (*cmdDetails, error) {
 
 		if cmdDetails, found := cmdDetailsMap[strings.Join(path, "/")]; found {
 			details = cmdDetails
-		} else {
-			log.Debug("no details found for", path)
 		}
 	}
 	return &details, nil

@@ -107,7 +107,6 @@ var addPinCmd = &cmds.Command{
 		for {
 			select {
 			case val, ok := <-ch:
-				log.Debugf("select/<-ch:%v, ok:%v, v:%v", val, ok, v)
 				if !ok {
 					// error already set just return
 					return
